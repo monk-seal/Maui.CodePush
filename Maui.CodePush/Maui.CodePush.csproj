@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net6.0-android;net6.0-ios</TargetFrameworks>
+    <SingleProject>true</SingleProject>
+    <Nullable>enable</Nullable>    
+		<RootNamespace>Java.Interop</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <UseMaui>true</UseMaui>
+    <ImplicitUsings>true</ImplicitUsings>
+    <Version>0.0.1-pre</Version>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+    <PackageId>Java.Interop</PackageId>
+	</PropertyGroup>
+
+  
+  <ItemGroup>
+    <None Include="build\*.targets" Pack="True" PackagePath="buildTransitive" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+</Project>
