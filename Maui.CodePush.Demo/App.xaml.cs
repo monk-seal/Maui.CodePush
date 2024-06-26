@@ -8,5 +8,11 @@
 
             MainPage = new AppShell();
         }
+
+        protected override void OnStart()
+        {
+            base.OnStart();
+            CodePush.CheckUpdates();
+        }
     }
 }

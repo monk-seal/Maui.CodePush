@@ -21,4 +21,5 @@ namespace Maui.CodePush.Demo.WinUI
 
         protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
     }
+
 }

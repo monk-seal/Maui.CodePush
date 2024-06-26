@@ -1,15 +1,15 @@
 ﻿using Android.App;
 using Android.Runtime;
 
-namespace Maui.CodePush.Demo
-{
-    public class MainApplication : MauiApplication
-    {
-        public MainApplication(IntPtr handle, JniHandleOwnership ownership)
-            : base(handle, ownership)
-        {
-        }
+namespace Maui.CodePush.Demo;
 
-        protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+[Application]
+public class MainApplication : CodePushApplication
+{
+    public MainApplication(IntPtr handle, JniHandleOwnership ownership)
+        : base(handle, ownership)
+    {
     }
+
+    protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 }

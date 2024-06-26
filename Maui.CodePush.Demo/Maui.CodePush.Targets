@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <Target Name="RemoveModulesBefore" BeforeTargets="_GenerateAndroidAssetsDir">
+    <Message Text="[Maui CodePush] Removing submodules" Importance="high"/>
+    
+
+    <ItemGroup>
+      <!--Create a variable with MFE dlls-->
+      <CodePushMfeAssemblies Include="@(_ShrunkUserAssemblies)" Condition="'%(Filename)' == 'Maui.CodePush.Demo.Feature'" KeepMetadata="none" />
+      <Message Text="@(CodePushMfeAssemblies)" Importance="high"/>
+      <!--Remove the MFEs from assemblies list to the APK-->
+      <_ShrunkUserAssemblies Remove="@(CodePushMfeAssemblies)"/>
+    </ItemGroup>
+
+    <!--Copy the MFEs to the assets folder-->
+    <!--<Copy SourceFiles="obj\Release\net8.0-Android\android\assets\Maui.CodePush.Demo.Feature.dll.so" DestinationFolder="obj\Release\android\assets\"/>-->
+
+    <Message Text="[Maui CodePush] Finished" Importance="high" />
+  </Target>
+
+</Project>

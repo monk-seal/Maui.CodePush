@@ -1,4 +1,4 @@
-﻿namespace Maui.CodePush.Demo
+﻿namespace Maui.CodePush.Demo.Feature
 {
     public partial class MainPage : ContentPage
     {
