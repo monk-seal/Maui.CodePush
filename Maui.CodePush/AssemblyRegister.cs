@@ -1,6 +1,6 @@
 ﻿namespace Maui.CodePush;
 
-internal class CodePushAssemblyRegister : IAssemblyCollection
+internal class AssemblyRegister : IAssemblyCollection
 {
     private const string EXTENSION = ".dll";
 

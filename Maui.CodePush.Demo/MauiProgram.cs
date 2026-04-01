@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Maui.CodePush.Demo;
 
@@ -9,9 +9,14 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseCodePush(assemblies =>
+            .UseCodePush(options =>
             {
-                assemblies.AddAssembly("Maui.CodePush.Demo.Feature");
+                options.AddModule("Maui.CodePush.Demo.Feature");
+
+                // Phase 2: configure server
+                // options.ServerUrl = "https://codepush.example.com";
+                // options.AppKey = "demo-app-key";
+                // options.CheckOnStartup = true;
             })
             .ConfigureFonts(fonts =>
             {
@@ -20,7 +25,7 @@ public static class MauiProgram
             });
 
 #if DEBUG
-		builder.Logging.AddDebug();
+        builder.Logging.AddDebug();
 #endif
 
         return builder.Build();

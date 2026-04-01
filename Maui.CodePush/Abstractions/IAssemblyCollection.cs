@@ -1,6 +1,6 @@
 ﻿namespace Maui.CodePush;
 
-public interface IAssemblyCollection
+internal interface IAssemblyCollection
 {
     void AddAssembly(string assemblyName);
 }

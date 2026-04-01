@@ -1,10 +1,9 @@
 ﻿using Foundation;
 
-namespace Maui.CodePush.Demo
+namespace Maui.CodePush.Demo;
+
+[Register("AppDelegate")]
+public class AppDelegate : CodePushAppDelegate
 {
-    [Register("AppDelegate")]
-    public class AppDelegate : MauiUIApplicationDelegate
-    {
-        protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
-    }
+    protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 }

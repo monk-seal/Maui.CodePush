@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!--
+    Maui.CodePush Build Properties
+
+    Usage in consuming app .csproj:
+    <ItemGroup>
+      <CodePushModule Include="MyApp.Feature" />
+      <CodePushModule Include="MyApp.AnotherFeature" />
+    </ItemGroup>
+  -->
+
+  <ItemGroup>
+    <Using Include="Maui.CodePush" />
+  </ItemGroup>
+
+</Project>

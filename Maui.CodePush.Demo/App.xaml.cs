@@ -1,18 +1,22 @@
-﻿namespace Maui.CodePush.Demo
+namespace Maui.CodePush.Demo;
+
+public partial class App : Application
 {
-    public partial class App : Application
+    public App()
     {
-        public App()
-        {
-            InitializeComponent();
+        InitializeComponent();
+    }
 
-            MainPage = new AppShell();
-        }
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new AppShell());
+    }
 
-        protected override void OnStart()
-        {
-            base.OnStart();
-            CodePush.CheckUpdates();
-        }
+    protected override async void OnStart()
+    {
+        base.OnStart();
+
+        // Check for updates in background
+        await CodePush.CheckUpdatesAsync();
     }
 }

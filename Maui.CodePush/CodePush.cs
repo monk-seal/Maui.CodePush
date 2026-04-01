@@ -1,26 +1,45 @@
-﻿using System.Diagnostics;
-using System.Net;
+using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using static Maui.CodePush.AppBuilderExtensions;
 
 namespace Maui.CodePush;
 
 public static class CodePush
 {
-    private static readonly string _basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Modules");
-    private static readonly string _tempPath = Path.Combine(Path.GetTempPath(), "Modules");
+    private static string _basePath = string.Empty;
+    private static string _tempPath = string.Empty;
+    private static CodePushOptions? _options;
+    private static ModuleManager? _moduleManager;
+    private static UpdateClient? _updateClient;
+    private static bool _initialized;
 
-    internal static CodePushAssemblyRegister Register = new();
+    internal static AssemblyRegister Register => _options?.Register ?? new AssemblyRegister();
+    internal static ModuleManager? Manager => _moduleManager;
 
-    [ModuleInitializer]
-    public static void Setup()
+    internal static void Initialize(CodePushOptions options)
     {
+        if (_initialized)
+            return;
+
+        _options = options;
+        _basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Modules");
+        _tempPath = Path.Combine(Path.GetTempPath(), "Modules");
+
         if (!Directory.Exists(_basePath))
             Directory.CreateDirectory(_basePath);
 
         if (!Directory.Exists(_tempPath))
             Directory.CreateDirectory(_tempPath);
+
+        _moduleManager = new ModuleManager(_basePath);
+        _updateClient = new UpdateClient(options, _tempPath);
+
+        AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve;
+
+        DeleteDebugAssemblies();
+
+        _initialized = true;
+
+        Debug.WriteLine("[CodePush] Initialized successfully.");
     }
 
     public static Assembly? AssemblyResolve(object? sender, ResolveEventArgs args)
@@ -33,142 +52,242 @@ public static class CodePush
 
         var dllLocalPath = ResolveAssembly(moduleName);
 
-        if (string.IsNullOrWhiteSpace(dllLocalPath))
-            return null;
-
-        if (!File.Exists(dllLocalPath))
+        if (string.IsNullOrWhiteSpace(dllLocalPath) || !File.Exists(dllLocalPath))
             return null;
 
         try
         {
-            return Assembly.LoadFrom(dllLocalPath);
+            var assembly = Assembly.LoadFrom(dllLocalPath);
+            _moduleManager?.MarkApplied(Path.GetFileNameWithoutExtension(moduleName));
+            Debug.WriteLine($"[CodePush] Loaded module: {moduleName}");
+            return assembly;
         }
-        catch (BadImageFormatException e)
+        catch (BadImageFormatException)
         {
-            Console.WriteLine("Unable to load {0}.", dllLocalPath);
-            Console.WriteLine(e.Message.Substring(0,
-                              e.Message.IndexOf(".") + 1));
+            Debug.WriteLine($"[CodePush] BadImageFormat for {moduleName}, attempting unpack from embedded...");
 
             try
             {
                 var localDllFile = Path.Combine(_basePath, moduleName);
-                TryUnpackEmbeededAssemmbly(moduleName, dllLocalPath);
-                return Assembly.LoadFrom(dllLocalPath);
+                UnpackEmbeddedReference(moduleName, localDllFile, deleteIfExists: true);
+
+                if (File.Exists(localDllFile))
+                    return Assembly.LoadFrom(localDllFile);
             }
-            catch (BadImageFormatException ex)
+            catch (Exception ex)
             {
-                Console.WriteLine("Unable to load {0}.", dllLocalPath);
-                Console.WriteLine(ex.Message.Substring(0,
-                                  ex.Message.IndexOf(".") + 1));
+                Debug.WriteLine($"[CodePush] Failed to recover {moduleName}: {ex.Message}");
             }
         }
 
         return null;
     }
 
-    private static Assembly TryUnpackEmbeededAssemmbly(string moduleName, string moduleFilePath)
+    public static async Task CheckUpdatesAsync(CancellationToken cancellationToken = default)
     {
+        if (_updateClient is null || _options is null || _moduleManager is null)
+        {
+            Debug.WriteLine("[CodePush] Not initialized. Call UseCodePush() first.");
+            return;
+        }
+
         try
         {
-            UnpackEmbeddedReference(moduleName, moduleFilePath);
+            foreach (var assemblyName in Register.Assemblies)
+            {
+                var moduleName = Path.GetFileNameWithoutExtension(assemblyName);
+                var currentInfo = _moduleManager.GetModuleInfo(moduleName);
+                var currentVersion = currentInfo?.Version ?? "0.0.0";
+
+                if (!string.IsNullOrEmpty(_options.ServerUrl))
+                {
+                    var result = await _updateClient.CheckForUpdatesAsync(moduleName, currentVersion, cancellationToken);
+
+                    if (result?.UpdateAvailable == true)
+                    {
+                        foreach (var module in result.Modules)
+                        {
+                            var downloadedPath = await _updateClient.DownloadModuleAsync(module, cancellationToken);
+                            if (downloadedPath != null)
+                            {
+                                _moduleManager.MarkUpdated(module.Name, module.Version, downloadedPath);
+                                Debug.WriteLine($"[CodePush] Update downloaded for {module.Name} v{module.Version}");
+                            }
+                        }
+                    }
+                }
+
+                _moduleManager.UpdateLastChecked();
+            }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine(ex.Message);
-        }
+            Debug.WriteLine($"[CodePush] Update check failed: {ex.Message}");
 
-        if (!File.Exists(moduleFilePath))
-            return null;
-
-        return Assembly.LoadFrom(moduleFilePath);
-    }
-
-    private static void UnpackEmbeddedReference(string moduleName, string localDllFile, bool deleteIfExists = false)
-    {
-#if ANDROID
-        var test = Platform.AppContext.Assets.List("");
-        using (var embedded = Platform.AppContext.Assets.Open(moduleName))
-        {
-            if (embedded is null)
-                return;
-
-            if (deleteIfExists && File.Exists(localDllFile))
-                File.Delete(localDllFile);
-
-            using (var fileStream = File.Create(localDllFile))
-            {
-                embedded.CopyTo(fileStream);
-            }
-        }
-#endif
-    }
-
-    private static string ResolveAssembly(string moduleName)
-    {
-        // Uses the newest version of the module
-        var tempLocalDll = Path.Combine(_tempPath, moduleName);
-        var localDllFile = Path.Combine(_basePath, moduleName);
-
-        if (File.Exists(tempLocalDll))
-            File.Copy(tempLocalDll, localDllFile, true);
-
-        if (File.Exists(localDllFile))
-            return localDllFile;
-
-        // Resolve from assets
-        UnpackEmbeddedReference(moduleName, localDllFile);
-
-        return localDllFile;
-    }
-
-    public static void CheckUpdates()
-    {
-        using (var client = new WebClient())
-        {
-            //Download from server
-            foreach (var assemblyName in Register.Assemblies)
-            {
-                var tempFilePath = Path.Combine(Path.GetTempPath(), assemblyName);
-                client.DownloadFile($"https://raw.githubusercontent.com/felipebaltazar/felipebaltazar/inapp-update-tests/{assemblyName}", tempFilePath);
-
-            }
-        }
-
-        foreach (var assemblyName in Register.Assemblies)
-        {
-            var tempFilePath = Path.Combine(Path.GetTempPath(), assemblyName);
-
-            // Verifica se baixou corretamente
-            if (!File.Exists(tempFilePath))
-                return;
-
-            // Search the assembly
-            var fileName = Path.GetFileNameWithoutExtension(assemblyName);
-            var assembly = AppDomain.CurrentDomain
-                                    .GetAssemblies()
-                                    .FirstOrDefault(a => a.GetName().Name == fileName);
-
-            var filePath = assembly?.Location ?? tempFilePath;
-
-            // Search about the version of the new assembly and the current assembly
-            var newAssembly = FileVersionInfo.GetVersionInfo(tempFilePath)?.FileVersion ?? "1.0.0.0";
-            var currentAssembly = FileVersionInfo.GetVersionInfo(filePath)?.FileVersion ?? "1.0.0.0";
-
-            // Compare the new version with the current version
-            // if (!(new Version(currentAssembly) < new Version(newAssembly)))
-            //     return;
-
-            // Override the old dll
-            File.Copy(tempFilePath, filePath, true);
+            if (Debugger.IsAttached)
+                Debugger.Break();
         }
     }
 
     public static void Rollback()
     {
-        Directory.Delete(_basePath, true);
-        Directory.Delete(_tempPath, true);
+        if (Directory.Exists(_basePath))
+        {
+            Directory.Delete(_basePath, true);
+            Directory.CreateDirectory(_basePath);
+        }
 
-        Directory.CreateDirectory(_basePath);
-        Directory.CreateDirectory(_tempPath);
+        if (Directory.Exists(_tempPath))
+        {
+            Directory.Delete(_tempPath, true);
+            Directory.CreateDirectory(_tempPath);
+        }
+
+        _moduleManager?.Reset();
+
+        Debug.WriteLine("[CodePush] Rolled back to embedded modules.");
+    }
+
+    public static void Rollback(string moduleName)
+    {
+        var dllName = moduleName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+            ? moduleName
+            : $"{moduleName}.dll";
+
+        var baseDll = Path.Combine(_basePath, dllName);
+        var tempDll = Path.Combine(_tempPath, dllName);
+
+        if (File.Exists(tempDll))
+            File.Delete(tempDll);
+
+        if (File.Exists(baseDll))
+            File.Delete(baseDll);
+
+        _moduleManager?.MarkRolledBack(Path.GetFileNameWithoutExtension(dllName));
+
+        Debug.WriteLine($"[CodePush] Rolled back module: {moduleName}");
+    }
+
+    private static string ResolveAssembly(string moduleName)
+    {
+        var tempLocalDll = Path.Combine(_tempPath, moduleName);
+        var localDllFile = Path.Combine(_basePath, moduleName);
+
+        // Priority 1: temp folder (pending updates)
+        if (File.Exists(tempLocalDll))
+        {
+            File.Copy(tempLocalDll, localDllFile, true);
+            File.Delete(tempLocalDll);
+            Debug.WriteLine($"[CodePush] Applied pending update for {moduleName}");
+        }
+
+        // Priority 2: base folder (persisted)
+        if (File.Exists(localDllFile))
+            return localDllFile;
+
+        // Priority 3: embedded resource (fallback)
+        UnpackEmbeddedReference(moduleName, localDllFile);
+
+        return localDllFile;
+    }
+
+    private static void UnpackEmbeddedReference(string moduleName, string localDllFile, bool deleteIfExists = false)
+    {
+        try
+        {
+            if (deleteIfExists && File.Exists(localDllFile))
+                File.Delete(localDllFile);
+
+#if ANDROID
+            using var embedded = Platform.AppContext.Assets!.Open(moduleName);
+            using var fileStream = File.Create(localDllFile);
+            embedded.CopyTo(fileStream);
+#else
+            var assemblyName = CodePushAppDelegate.AssemblyName;
+            var assembly = AppDomain.CurrentDomain
+                .GetAssemblies()
+                .FirstOrDefault(a => a.GetName().Name == assemblyName);
+
+            if (assembly is null)
+            {
+                Debug.WriteLine($"[CodePush] Host assembly '{assemblyName}' not found for embedded resource extraction.");
+                return;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(moduleName);
+            if (stream is null)
+            {
+                Debug.WriteLine($"[CodePush] Embedded resource '{moduleName}' not found in assembly '{assemblyName}'.");
+                return;
+            }
+
+            using var fileStream = File.Create(localDllFile);
+            stream.CopyTo(fileStream);
+#endif
+            Debug.WriteLine($"[CodePush] Unpacked embedded resource: {moduleName}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CodePush] Failed to unpack {moduleName}: {ex.Message}");
+        }
+    }
+
+    internal static void DeleteDebugAssemblies()
+    {
+#if ANDROID
+        // Fast deployment directory: /data/user/0/<package>/files/.__override__/
+        var filesDir = Platform.AppContext.FilesDir!.AbsolutePath;
+        var overrideDir = Path.Combine(filesDir, ".__override__");
+
+        if (!Directory.Exists(overrideDir))
+            return;
+
+        foreach (var assembly in Register.Assemblies)
+        {
+            // Check root override directory
+            var filePath = Path.Combine(overrideDir, assembly);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+                Debug.WriteLine($"[CodePush] Deleted debug assembly: {filePath}");
+            }
+
+            // Check arch-specific subdirectories (arm64-v8a, armeabi-v7a, x86_64, etc.)
+            try
+            {
+                foreach (var subDir in Directory.GetDirectories(overrideDir))
+                {
+                    var archFilePath = Path.Combine(subDir, assembly);
+                    if (File.Exists(archFilePath))
+                    {
+                        File.Delete(archFilePath);
+                        Debug.WriteLine($"[CodePush] Deleted debug assembly: {archFilePath}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CodePush] Error scanning override dirs: {ex.Message}");
+            }
+        }
+#elif IOS
+        var assemblyName = CodePushAppDelegate.AssemblyName;
+        var applicationDataFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            $"{assemblyName}.content");
+
+        if (!Directory.Exists(applicationDataFolder))
+            return;
+
+        foreach (var assembly in Register.Assemblies)
+        {
+            var finalFilePath = Path.Combine(applicationDataFolder, assembly);
+            if (File.Exists(finalFilePath))
+            {
+                File.Delete(finalFilePath);
+                Debug.WriteLine($"[CodePush] Deleted debug assembly: {finalFilePath}");
+            }
+        }
+#endif
     }
 }

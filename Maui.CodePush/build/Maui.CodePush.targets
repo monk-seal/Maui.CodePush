@@ -1,6 +1,115 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
-<Project>
-  <ItemGroup>
-    <Using Include="Maui.CodePush" />
-  </ItemGroup>
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!--
+    Maui.CodePush Build Targets
+
+    Removes CodePushModule assemblies from the final app package so they can be
+    loaded dynamically at runtime via Assembly.Load/AssemblyResolve.
+
+    Modules are embedded as resources in the host app and extracted at first launch.
+    Updates replace these modules by downloading new DLLs from the CodePush server.
+  -->
+
+  <!-- ================================================================== -->
+  <!-- iOS: Configure MtouchInterpreter for CodePush modules              -->
+  <!-- Enables hybrid AOT + interpreter: main app runs AOT, modules use   -->
+  <!-- the Mono interpreter so Assembly.Load works on iOS.                -->
+  <!-- ================================================================== -->
+  <Target Name="CodePush_ConfigureiOSInterpreter"
+          BeforeTargets="Build"
+          Condition="$(TargetFramework.Contains('ios')) AND '@(CodePushModule)' != ''">
+
+    <PropertyGroup>
+      <_CodePushModuleList>@(CodePushModule, ',')</_CodePushModuleList>
+      <MtouchInterpreter Condition="'$(_CodePushModuleList)' != ''">-all,$(_CodePushModuleList)</MtouchInterpreter>
+    </PropertyGroup>
+
+    <Message Text="[Maui.CodePush] iOS MtouchInterpreter configured: $(MtouchInterpreter)" Importance="high" />
+  </Target>
+
+  <!-- ================================================================== -->
+  <!-- ANDROID: Remove modules from assembly pipeline (after trimming)    -->
+  <!-- Hooks AfterTargets="_PrepareAssemblies" which is BEFORE the        -->
+  <!-- assembly store (libxamarin-app.so blob) is created.                -->
+  <!-- ================================================================== -->
+  <Target Name="CodePush_RemoveModulesFromAndroid"
+          AfterTargets="_PrepareAssemblies"
+          Condition="$(TargetFramework.Contains('android')) AND '@(CodePushModule)' != ''">
+
+    <Message Text="[Maui.CodePush] Removing modules from Android assembly store: @(CodePushModule)" Importance="high" />
+
+    <!-- Build semicolon-delimited list for matching -->
+    <PropertyGroup>
+      <_CodePushModuleNames>;@(CodePushModule, ';');</_CodePushModuleNames>
+    </PropertyGroup>
+
+    <!-- Remove from both user and framework assembly lists -->
+    <ItemGroup>
+      <_ShrunkUserAssemblies Remove="@(_ShrunkUserAssemblies)"
+                              Condition="$(_CodePushModuleNames.Contains(';%(Filename);'))" />
+      <_ShrunkFrameworkAssemblies Remove="@(_ShrunkFrameworkAssemblies)"
+                                   Condition="$(_CodePushModuleNames.Contains(';%(Filename);'))" />
+    </ItemGroup>
+
+    <Message Text="[Maui.CodePush] Android module removal complete." Importance="high" />
+  </Target>
+
+  <!-- ================================================================== -->
+  <!-- iOS: Remove modules before native compilation (device builds)      -->
+  <!-- ================================================================== -->
+  <Target Name="CodePush_RemoveModulesFromiOS"
+          BeforeTargets="_CompileNativeExecutable"
+          Condition="$(TargetFramework.Contains('ios')) AND '@(CodePushModule)' != ''">
+
+    <Message Text="[Maui.CodePush] Removing modules from iOS build: @(CodePushModule)" Importance="high" />
+
+    <ItemGroup>
+      <_CodePushiOSFilesToDelete Include="$(IntermediateOutputPath)refint\%(CodePushModule.Identity).dll" />
+      <_CodePushiOSFilesToDelete Include="$(IntermediateOutputPath)**\resourcestamps\%(CodePushModule.Identity).stamp" />
+      <_CodePushiOSFilesToDelete Include="$(OutputPath)**\%(CodePushModule.Identity).dll" />
+    </ItemGroup>
+
+    <Delete Files="@(_CodePushiOSFilesToDelete)" ContinueOnError="true" />
+
+    <Message Text="[Maui.CodePush] iOS module removal complete." Importance="high" />
+  </Target>
+
+  <!-- ================================================================== -->
+  <!-- iOS: Also remove after build (catches remaining artifacts)         -->
+  <!-- ================================================================== -->
+  <Target Name="CodePush_RemoveModulesAfterBuild"
+          AfterTargets="AfterBuild"
+          Condition="$(TargetFramework.Contains('ios')) AND '@(CodePushModule)' != ''">
+
+    <ItemGroup>
+      <_CodePushiOSPostBuildCleanup Include="$(IntermediateOutputPath)refint\%(CodePushModule.Identity).dll" />
+      <_CodePushiOSPostBuildCleanup Include="$(OutputPath)**\%(CodePushModule.Identity).dll" />
+    </ItemGroup>
+
+    <Delete Files="@(_CodePushiOSPostBuildCleanup)" ContinueOnError="true" />
+  </Target>
+
+  <!-- ================================================================== -->
+  <!-- iOS: Remove modules from Hot Restart content (development)         -->
+  <!-- ================================================================== -->
+  <Target Name="CodePush_RemoveModulesFromHotRestart"
+          AfterTargets="_CopyFilesToHotRestartContentDir"
+          Condition="$(TargetFramework.Contains('ios')) AND '@(CodePushModule)' != ''">
+
+    <Message Text="[Maui.CodePush] Removing modules from Hot Restart content." Importance="high" />
+
+    <ItemGroup>
+      <_CodePushHotRestartToRemove Include="@(_HotRestartContentDirContents)"
+                                     Condition="@(CodePushModule->AnyHaveMetadataValue('Identity', '%(Filename)'))"
+                                     KeepMetadata="none" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_HotRestartContentDirContents Remove="@(_CodePushHotRestartToRemove)" />
+    </ItemGroup>
+
+    <Delete Files="@(_CodePushHotRestartToRemove)" ContinueOnError="true" />
+  </Target>
+
 </Project>
