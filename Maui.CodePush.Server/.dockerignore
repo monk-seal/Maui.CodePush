@@ -1,0 +1,6 @@
+bin/
+obj/
+uploads/
+codepush.db*
+appsettings.Development.json
+.codepush.json

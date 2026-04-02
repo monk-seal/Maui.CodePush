@@ -1,0 +1,17 @@
+services:
+  codepush-server:
+    image: ghcr.io/felipebaltazar/codepush-server:latest
+    container_name: codepush-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - MONGODB_CONNECTION_STRING=${MONGODB_CONNECTION_STRING}
+      - MONGODB_DATABASE_NAME=${MONGODB_DATABASE_NAME:-codepush}
+      - CODEPUSH_JWT_SECRET=${CODEPUSH_JWT_SECRET}
+    volumes:
+      - codepush-uploads:/app/uploads
+
+volumes:
+  codepush-uploads:

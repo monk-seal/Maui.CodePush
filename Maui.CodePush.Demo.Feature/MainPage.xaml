@@ -1,35 +1,88 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
     x:Class="Maui.CodePush.Demo.Feature.MainPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#1a1a2e">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="30,0" Spacing="25">
-            <Image
-                Aspect="AspectFit"
-                HeightRequest="185"
-                SemanticProperties.Description="dot net bot in a race car number eight"
-                Source="dotnet_bot.png" />
+    <Grid RowDefinitions="Auto,*,Auto" Padding="30">
 
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Spacing="8" Padding="0,40,0,20">
             <Label
-                SemanticProperties.HeadingLevel="Level1"
-                Style="{StaticResource Headline}"
-                Text="Hello, World!" />
-
+                Text="CODE PUSH UPDATE!"
+                FontSize="32"
+                FontAttributes="Bold"
+                TextColor="#e94560"
+                HorizontalTextAlignment="Center" />
             <Label
-                SemanticProperties.Description="Welcome to dot net Multi platform App U I"
-                SemanticProperties.HeadingLevel="Level2"
-                Style="{StaticResource SubHeadline}"
-                Text="Welcome to &#10;.NET Multi-platform App UI" />
+                Text="v2.0 - Hot Fix Deployed"
+                FontSize="18"
+                TextColor="#0f3460"
+                BackgroundColor="#e94560"
+                Padding="10,5"
+                HorizontalTextAlignment="Center"
+                HorizontalOptions="Center" />
+            <BoxView HeightRequest="2" Color="#16213e" Margin="0,10" />
+        </VerticalStackLayout>
+
+        <!-- Content -->
+        <VerticalStackLayout Grid.Row="1" VerticalOptions="Center" Spacing="20">
+
+            <Frame BackgroundColor="#16213e" CornerRadius="20" Padding="25" HasShadow="False">
+                <VerticalStackLayout Spacing="15">
+                    <Label
+                        Text="This page was updated via CodePush"
+                        FontSize="20"
+                        TextColor="#eee"
+                        HorizontalTextAlignment="Center" />
+                    <Label
+                        Text="No app store review needed!"
+                        FontSize="16"
+                        TextColor="#53bf9d"
+                        FontAttributes="Italic"
+                        HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BackgroundColor="#0f3460" CornerRadius="15" Padding="20" HasShadow="False">
+                <VerticalStackLayout Spacing="10">
+                    <Label x:Name="StatusLabel"
+                        Text="Tap the button below"
+                        FontSize="18"
+                        TextColor="White"
+                        HorizontalTextAlignment="Center" />
+                    <Label x:Name="CounterLabel"
+                        Text="0"
+                        FontSize="60"
+                        FontAttributes="Bold"
+                        TextColor="#e94560"
+                        HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Frame>
 
             <Button
                 x:Name="CounterBtn"
                 Clicked="OnCounterClicked"
-                HorizontalOptions="Fill"
-                SemanticProperties.Hint="Counts the number of times you click"
-                Text="Click me" />
+                Text="UPDATED BUTTON"
+                FontSize="18"
+                FontAttributes="Bold"
+                BackgroundColor="#e94560"
+                TextColor="White"
+                CornerRadius="25"
+                HeightRequest="55"
+                HorizontalOptions="Fill" />
+
         </VerticalStackLayout>
-    </ScrollView>
+
+        <!-- Footer -->
+        <Label Grid.Row="2"
+            Text="Maui.CodePush - OTA Updates for .NET MAUI"
+            FontSize="12"
+            TextColor="#555"
+            HorizontalTextAlignment="Center"
+            Padding="0,20,0,10" />
+
+    </Grid>
 
 </ContentPage>

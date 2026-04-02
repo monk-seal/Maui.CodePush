@@ -3,6 +3,16 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Secrets and local config
+appsettings.Development.json
+appsettings.*.local.json
+.codepush.json
+.env
+*.db
+*.db-shm
+*.db-wal
+uploads/
+
 # User-specific files
 *.rsuser
 *.suo

@@ -146,6 +146,27 @@ Maui.CodePush.Cli/                      # CLI tool (dotnet global tool)
     ConfigManager.cs                    # Leitura/escrita de .codepush.json
   Models/
     CodePushConfig.cs                   # Modelo do .codepush.json
+
+Maui.CodePush.Server/                   # API REST (ASP.NET Core + SQLite)
+  Maui.CodePush.Server.csproj          # net9.0, EF Core SQLite, JWT Bearer, BCrypt
+  Program.cs                            # Setup: DB, Auth multi-scheme, CORS, endpoints
+  Data/
+    AppDbContext.cs                      # EF Core context com indexes unicos
+    Entities/
+      Account.cs                        # Email, PasswordHash, ApiKey
+      Subscription.cs                   # Status (Active/Inactive/Trial), Plan, ExpiresAt
+      App.cs                            # PackageName (unique), AppToken, AccountId FK
+      Release.cs                        # ModuleName, Version, Platform, DllHash, FileName
+  Endpoints/
+    AuthEndpoints.cs                    # Register, Login (JWT), Me
+    AppEndpoints.cs                     # CRUD apps (ownership por account)
+    ReleaseEndpoints.cs                 # Upload DLL (multipart), List, Delete
+    UpdateEndpoints.cs                  # Check + Download (valida AppToken)
+  Services/
+    TokenService.cs                     # Gera JWT e tokens aleatorios
+    SubscriptionService.cs              # Mock ativo, placeholder Stripe
+  Auth/
+    ApiKeyAuthHandler.cs                # Custom auth handler para X-Api-Key header
 ```
 
 ## Arquivos Detalhados

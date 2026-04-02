@@ -89,3 +89,49 @@ codepush init --force   -> detectou package name e modulos do demo
 codepush release Feature.csproj --restart  -> buildou, deployou, reiniciou
 codepush rollback --all --restart          -> limpou tudo, reiniciou
 ```
+
+## Servidor API (2026-04-02)
+
+### Implementacao
+Criado `Maui.CodePush.Server/` — ASP.NET Core Minimal API com:
+- EF Core + SQLite (codepush.db, auto-criado)
+- JWT Bearer + API Key auth (multi-scheme: seleciona automaticamente pelo header)
+- App Token auth para endpoints mobile (header X-CodePush-Token)
+- BCrypt para hash de senhas
+- Subscription mock (sempre ativo, pronto para Stripe)
+
+### Modelo de Seguranca
+Baseado em pesquisa do Shorebird e CodePush:
+- **Dev auth**: Email/password -> JWT (7 dias). API Key para CI/CD.
+- **App ownership**: First-come-first-served por package name (unique constraint). So o dono publica.
+- **App auth**: AppToken (32 bytes hex) gerado na criacao do app, embedado no mobile. Nao eh segredo absoluto mas permite revogacao.
+- **Integridade**: SHA-256 hash calculado no upload, verificado no download.
+
+### Validacao
+Testado fluxo completo via curl:
+1. Registro -> conta + API key + subscription Active
+2. Login -> JWT token
+3. Create app -> appId + appToken + package name unico
+4. Upload DLL (multipart) -> hash calculado, arquivo salvo em `uploads/`
+5. Check update (com AppToken) -> `updateAvailable: true` + download URL
+6. Download DLL -> 11264 bytes corretos
+7. Sem token -> 401 (bloqueado)
+8. Token errado -> 401 (bloqueado)
+
+### Migracao para MongoDB (2026-04-02)
+Substituido EF Core + SQLite por MongoDB.Driver 3.4.0.
+- Removidos: `AppDbContext.cs`, pacotes `Microsoft.EntityFrameworkCore.Sqlite` e `.Design`
+- Criado: `MongoDbContext.cs` com collections e `EnsureIndexesAsync()` para indexes unicos
+- Entidades: adicionados atributos `[BsonId]`, `[BsonElement]`, `[BsonRepresentation]`
+- Todos os endpoints reescritos de LINQ/EF para MongoDB Driver (`Find`, `InsertOneAsync`, `DeleteManyAsync`, etc.)
+- Config: `MongoDB:ConnectionString` e `MongoDB:DatabaseName` em appsettings.json
+- Motivo: usuario preferiu MongoDB para o projeto
+
+### Docker + CI/CD (2026-04-02)
+- Criado `Maui.CodePush.Server/Dockerfile` (multi-stage build, aspnet:9.0, porta 8080)
+- Criado `docker-compose.yml` para deploy em VPS (pull de ghcr.io, env vars para secrets, volume para uploads)
+- Criado `.github/workflows/server-deploy.yml`: build Docker + push para ghcr.io no push em main
+- Secrets configuradas no GitHub: `MONGODB_CONNECTION_STRING`, `MONGODB_DATABASE_NAME`, `CODEPUSH_JWT_SECRET`
+- `.env.example` criado como referencia para setup na VPS
+- `.gitignore` atualizado: `.env`, `appsettings.Development.json`, `uploads/`
+- `Program.cs` atualizado: env vars tem prioridade sobre appsettings para todas as secrets

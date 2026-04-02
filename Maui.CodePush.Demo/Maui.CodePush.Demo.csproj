@@ -23,6 +23,11 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(TargetFramework)'=='net9.0-ios'">
+		<CodesignKey>Apple Development: Created via API (XNG86Q8UW7)</CodesignKey>
+		<CodesignProvision>VS: WildCard Development</CodesignProvision>
+	</PropertyGroup>
+
 	<!-- Declare CodePush modules -->
 	<ItemGroup>
 		<CodePushModule Include="Maui.CodePush.Demo.Feature" />
@@ -46,7 +51,6 @@
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
-	<ItemGroup>
 	<ItemGroup>
 		<EmbeddedResource Include="Maui.CodePush.Demo.Feature.dll" />
 	</ItemGroup>

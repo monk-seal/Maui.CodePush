@@ -95,12 +95,18 @@ Validado end-to-end em device fisico. Detalhes em `Maui.CodePush.Cli/CLAUDE.md`.
 - [x] `codepush rollback` com limpeza de modules no device
 - [ ] `codepush release --server` upload para servidor HTTP (requer backend)
 
-### Backend API (ASP.NET Core Minimal API + EF Core + PostgreSQL)
-Endpoints:
-- `POST /api/apps` — Registrar app, retorna API key
-- `GET /api/apps/{key}/updates/check` — Client chama para verificar updates
-- `POST /api/apps/{key}/releases` — CLI faz upload de release
-- `DELETE /api/apps/{key}/releases/{id}` — Rollback
+### Backend API (Status: MVP Completo)
+Implementado `Maui.CodePush.Server/` com ASP.NET Core Minimal API + EF Core SQLite.
+Validado end-to-end via curl. Detalhes em `Maui.CodePush.Server/CLAUDE.md`.
+
+- [x] Auth: registro, login (JWT), API key (CI/CD)
+- [x] Apps: CRUD com ownership por account, package name unico
+- [x] Releases: upload multipart com SHA-256, storage em filesystem
+- [x] Updates: check + download com validacao de AppToken
+- [x] Subscription: mock ativo (pronto para Stripe)
+- [ ] Integrar CLI `release` com server (upload via HTTP em vez de adb)
+- [ ] Integrar lib mobile `UpdateClient` com server real
+- [ ] Stripe webhook para subscription real
 - `GET /api/apps/{key}/releases` — Listar releases
 - `PATCH /api/apps/{key}/releases/{id}` — Ajustar rollout %
 

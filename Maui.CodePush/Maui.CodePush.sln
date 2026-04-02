@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maui.CodePush.Demo.Feature"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maui.CodePush.Cli", "..\Maui.CodePush.Cli\Maui.CodePush.Cli.csproj", "{E09B81C6-D0D5-454F-A9F7-D13ECAAC29BE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maui.CodePush.Server", "..\Maui.CodePush.Server\Maui.CodePush.Server.csproj", "{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -77,6 +79,18 @@ Global
 		{E09B81C6-D0D5-454F-A9F7-D13ECAAC29BE}.Release|x64.Build.0 = Release|Any CPU
 		{E09B81C6-D0D5-454F-A9F7-D13ECAAC29BE}.Release|x86.ActiveCfg = Release|Any CPU
 		{E09B81C6-D0D5-454F-A9F7-D13ECAAC29BE}.Release|x86.Build.0 = Release|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Debug|x64.Build.0 = Debug|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Debug|x86.Build.0 = Debug|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Release|x64.ActiveCfg = Release|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Release|x64.Build.0 = Release|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Release|x86.ActiveCfg = Release|Any CPU
+		{3FFA93F2-EBCF-47D6-A920-6A5FD2B86824}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
