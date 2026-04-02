@@ -27,7 +27,8 @@ At build time, CodePush **removes your feature modules from the app package** an
 ### 1. Install the NuGet package
 
 ```
-dotnet add package Maui.CodePush --prerelease
+dotnet add package CodePush.Maui --prerelease
+dotnet tool install -g dotnet-codepush --prerelease
 ```
 
 ### 2. Create a Feature module
@@ -58,6 +59,10 @@ dotnet new mauiclass -n MyApp.Feature
 builder.UseCodePush(options =>
 {
     options.AddModule("MyApp.Feature");
+    options.ReleaseVersion = "1.0.0";     // matches your app store version
+    options.ServerUrl = "https://your-codepush-server.com";
+    options.AppId = "your-app-id";
+    options.AppToken = "your-app-token";
 });
 ```
 
@@ -70,18 +75,38 @@ public class MainApplication : CodePushApplication { ... }
 public class AppDelegate : CodePushAppDelegate { ... }
 ```
 
-### 4. Push an update
+### 4. Create a release and push patches
 
-Build your updated Feature module and deploy the DLL to your users — the app applies it on the next cold start.
+```bash
+# Login to CodePush server
+codepush login --email you@email.com --password yourpass
+
+# Register your app
+codepush apps add --package-name com.myapp --name "My App" --set-default
+
+# Create a release (captures dependency snapshot + git tag)
+codepush release create --version 1.0.0 --app-project MyApp/MyApp.csproj
+
+# Submit APK/IPA to app store...
+
+# Later, push a patch (checks dependency compatibility)
+codepush patch --release 1.0.0
+
+# Or deploy directly to a connected device for testing
+codepush release MyApp.Feature.csproj --local --restart
+```
 
 ## Features
 
 - **Android + iOS** support out of the box
+- **Release/Patch model** — like Shorebird: create releases, push compatible patches
+- **Dependency compatibility check** — prevents broken patches via assembly reference analysis
 - **Zero config MSBuild integration** — automatically removes modules from the app package
 - **3-tier assembly resolution** — pending updates > persisted > embedded fallback
 - **SHA-256 hash verification** for download integrity
-- **Version tracking** with JSON manifest
+- **Git integration** — automatic tags for releases (`v1.0.0`) and patches (`patch-v1.0.0-1`)
 - **Rollback** to any previous version or the original embedded module
+- **CLI tool** — `dotnet-codepush` with login, apps, release, patch, devices, rollback
 - **iOS hybrid AOT + Interpreter** — main app runs full AOT, only CodePush modules use the Mono interpreter (no performance penalty for the host app)
 
 ## How iOS Works

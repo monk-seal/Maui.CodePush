@@ -53,28 +53,31 @@ Se uma tarefa cria/modifica/remove arquivos sem atualizar a documentacao corresp
    - Carrega via `Assembly.LoadFrom(path)`
 
 ### Update Flow
-1. `CheckUpdatesAsync()` consulta o servidor: `GET /api/updates/check?app=X&module=Y&version=Z&platform=P`
-2. Se update disponivel, `UpdateClient` baixa a DLL para o diretorio temp (`cache/Modules/`)
-3. `ModuleManager` verifica hash SHA-256 e atualiza o manifesto
-4. No proximo cold start, `ResolveAssembly` detecta a DLL no temp e aplica
+1. `CheckUpdatesAsync()` envia `releaseVersion` ao servidor: `GET /api/updates/check?app=X&releaseVersion=V&platform=P`
+2. Servidor retorna patches ativos para essa release (todos os modulos de uma vez)
+3. `UpdateClient` baixa cada DLL para temp, verifica hash SHA-256
+4. `ModuleManager` marca como Pending no manifesto
+5. No proximo cold start, `ResolveAssembly` detecta a DLL no temp e aplica
 
-### Deploy via CLI
+### Criar Release (versao da loja)
 ```bash
-# Build + deploy + restart em um comando
-codepush release MeuApp.Feature/MeuApp.Feature.csproj --restart
-
-# Ou deploy de DLL pre-buildada
-codepush release MeuApp.Feature.dll --no-build --restart
-
-# Rollback para versao embeddada
-codepush rollback --all --restart
+codepush release create --version 1.0.0 --app-project App.csproj
+# Publica app + captura dependencias + upload + git tag v1.0.0
 ```
 
-### Deploy Manual (sem CLI)
+### Criar Patch (code push)
 ```bash
-dotnet build Feature/Feature.csproj -f net9.0-android
-adb push Feature.dll /data/local/tmp/Feature.dll
-adb shell "run-as com.meuapp cp /data/local/tmp/Feature.dll /data/user/0/com.meuapp/cache/Modules/Feature.dll"
+codepush patch --release 1.0.0
+# Build modulo + verifica deps + upload + git tag patch-v1.0.0-1
+
+# Com args extras pro dotnet
+codepush patch --release 1.0.0 --dotnet-args "/p:TrimMode=link"
+```
+
+### Deploy Local (sem servidor, via adb)
+```bash
+codepush release Feature.csproj --local --restart
+codepush rollback --all --restart
 ```
 
 ## Diretorios no Device

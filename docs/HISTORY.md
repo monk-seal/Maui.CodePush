@@ -155,3 +155,35 @@ Fix critico: `Program.cs` sincroniza env var `CODEPUSH_JWT_SECRET` no `builder.C
 - Consumidor configura: `options.ServerUrl`, `options.AppId`, `options.AppToken`
 - `CheckUpdatesAsync()` agora consulta o servidor real e baixa DLLs com verificacao de hash
 - CLI: comando `update` para self-update com `--pre` para pre-releases
+
+### Sistema de Releases e Patches (2026-04-02)
+
+Maior refatoracao do projeto. Implementacao do modelo release/patch inspirado no Shorebird:
+
+**Conceito**: Release = versao da loja. Patch = code push update vinculado a uma release. Patches so sao permitidos se as dependencias forem compativeis com a release.
+
+**Server**:
+- Nova entidade `AppRelease` com `DependencySnapshot` (assembly refs por modulo)
+- Nova entidade `Patch` (substitui Release flat, vinculada a AppRelease por ReleaseId)
+- Endpoints: `/api/apps/{id}/releases/v2` (CRUD releases) e `.../patches` (CRUD patches)
+- `UpdateEndpoints` suporta `releaseVersion` (novo) + `module+version` (legacy)
+- Patches auto-incrementam PatchNumber, desativam anteriores (IsActive)
+
+**CLI**:
+- `DependencyAnalyzer`: MetadataLoadContext le assembly refs de DLLs, compara com snapshot da release
+- `GitService`: cria e pusha tags (v1.0.0, patch-v1.0.0-1)
+- `codepush release create`: dotnet publish + captura deps + upload + git tag
+- `codepush patch --release X`: build + check deps + upload + git tag
+- `--dotnet-args` em todos os comandos de build (release create, release, patch)
+
+**Mobile lib**:
+- `CodePushOptions.ReleaseVersion`: versao da loja (baked in)
+- `UpdateClient.CheckForUpdatesAsync()`: single call com releaseVersion (nao mais per-module)
+- `ModuleInfo`: adicionados PatchNumber, ReleaseVersion
+
+**NuGet**: renomeado de `Maui.CodePush` para `CodePush.Maui` (prefixo Maui.* reservado pela Microsoft)
+
+### Banner CLI (2026-04-02)
+- Adicionado banner com box, CODE PUSH em block letters, .NET MAUI subtitle
+- Bot ASCII art removido apos multiplas tentativas de alinhamento falharem
+- Mantido design limpo: titulo + versao + tagline dentro de box Unicode

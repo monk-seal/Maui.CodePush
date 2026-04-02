@@ -1,115 +1,107 @@
 # Maui.CodePush.Server
 
-API REST para gerenciamento de releases CodePush. ASP.NET Core Minimal API + MongoDB.
+API REST para gerenciamento de releases e patches CodePush. ASP.NET Core Minimal API + MongoDB.
 
-## Modelo de Seguranca
+## Modelo de Dados
 
-### Autenticacao de Desenvolvedores (CLI -> Server)
-- **Registro**: POST `/api/auth/register` com email/password/name. Senha hasheada com BCrypt.
-- **Login**: POST `/api/auth/login` retorna JWT (expira em 7 dias). Claims: sub (accountId), email, name.
-- **API Key**: Alternativa ao JWT para CI/CD. Header `X-Api-Key`. Gerada no registro (32 bytes hex).
-- **Multi-scheme**: O servidor aceita JWT Bearer OU API Key, selecionado automaticamente pelo header presente.
+### Entidades
 
-### Autenticacao de Apps (Mobile -> Server)
-- **App Token**: Header `X-CodePush-Token`. Gerado na criacao do app (32 bytes hex).
-- **Modelo**: O token eh embedado no app mobile. Nao eh segredo absoluto (decompilavel) mas permite revogacao e rate limiting.
-- **Validacao**: Endpoints `/api/updates/*` verificam que o token corresponde ao appId solicitado.
+| Entidade | Colecao | Descricao |
+|----------|---------|-----------|
+| `Account` | accounts | Email, PasswordHash (BCrypt), Name, ApiKey |
+| `Subscription` | subscriptions | Status (Active/Inactive/Trial), Plan, ExpiresAt. Mock ativo |
+| `App` | apps | PackageName (unique), DisplayName, AppToken, AccountId FK |
+| `AppRelease` | appReleases | **Versao da loja**. Version, Platform, Channel, DependencySnapshot, GitTag |
+| `Patch` | patches | **Code push update**. ReleaseId FK, PatchNumber, ModuleName, DllHash, IsActive, GitTag |
+| `Release` | releases | **Legacy** (flat model antigo). Mantido para backward compat |
 
-### Ownership de Apps
-- **First-come-first-served**: Package name eh unico (constraint no DB). Quem registrar primeiro eh o dono.
-- **Apenas o dono publica**: Endpoints de release verificam que o accountId autenticado corresponde ao accountId do app.
+### Relacionamentos
+```
+Account 1──N App 1──N AppRelease 1──N Patch
+Account 1──N Subscription
+```
 
-### Subscription (Mock)
-- Todo registro cria subscription com status Active e plano "pro"
-- `SubscriptionService.IsSubscriptionActiveAsync()` verifica o status
-- Pronto para integrar Stripe via webhook `POST /api/webhook/stripe`
+### DependencySnapshot (em AppRelease)
+Lista de `ModuleDependencySnapshot`, cada um com:
+- `ModuleName`, `DllHash`, `DllSize`
+- `AssemblyReferences[]` — (Name, Version) extraidas do DLL via reflection na CLI
+
+## Autenticacao
+
+| Metodo | Header | Uso |
+|--------|--------|-----|
+| JWT Bearer | `Authorization: Bearer {token}` | CLI login (7 dias) |
+| API Key | `X-Api-Key: {key}` | CLI CI/CD |
+| App Token | `X-CodePush-Token: {token}` | Mobile app (check/download) |
+| Multi-scheme | Automatico | Seleciona JWT ou ApiKey pelo header presente |
 
 ## Endpoints
 
 ### Auth (`/api/auth`)
-| Metodo | Path | Auth | Descricao |
-|--------|------|------|-----------|
-| POST | `/register` | - | Registra conta. Retorna accountId + apiKey |
-| POST | `/login` | - | Login. Retorna JWT token |
-| GET | `/me` | JWT/ApiKey | Info da conta + subscription |
+- `POST /register` — Cria conta + subscription Active (mock)
+- `POST /login` — Retorna JWT
+- `GET /me` — Info da conta + subscription
 
-### Apps (`/api/apps`)
-| Metodo | Path | Auth | Descricao |
-|--------|------|------|-----------|
-| POST | `/` | JWT/ApiKey | Cria app. Retorna appId + appToken |
-| GET | `/` | JWT/ApiKey | Lista apps do usuario |
-| GET | `/{appId}` | JWT/ApiKey | Detalhes do app |
-| DELETE | `/{appId}` | JWT/ApiKey | Deleta app + releases |
+### Apps (`/api/apps`) [JWT/ApiKey]
+- `POST /` — Cria app (package name unico, gera AppToken)
+- `GET /` — Lista apps do usuario
+- `GET /{appId}` — Detalhes
+- `DELETE /{appId}` — Deleta app + releases + patches
 
-### Releases (`/api/apps/{appId}/releases`)
-| Metodo | Path | Auth | Descricao |
-|--------|------|------|-----------|
-| POST | `/` | JWT/ApiKey | Upload DLL (multipart form: file, moduleName, version, platform, channel) |
-| GET | `/` | JWT/ApiKey | Lista releases |
-| DELETE | `/{releaseId}` | JWT/ApiKey | Deleta release + arquivo |
+### Releases (`/api/apps/{appId}/releases/v2`) [JWT/ApiKey]
+- `POST /` — Cria release com DLLs + dependency snapshot (multipart)
+- `GET /` — Lista releases
+- `GET /{releaseId}` — Detalhes com snapshot completo
+- `DELETE /{releaseId}` — Deleta release + patches + arquivos
 
-### Updates (`/api/updates`) — Para apps mobile
-| Metodo | Path | Auth | Descricao |
-|--------|------|------|-----------|
-| GET | `/check?app=X&module=Y&version=Z&platform=P&channel=C` | AppToken | Verifica se ha update |
-| GET | `/download/{releaseId}` | AppToken | Baixa DLL do release |
+### Patches (`/api/apps/{appId}/releases/{releaseId}/patches`) [JWT/ApiKey]
+- `POST /` — Cria patch (auto-increment PatchNumber, desativa anteriores)
+- `GET /` — Lista patches
+- `DELETE /{patchId}` — Deleta patch + arquivo
+
+### Legacy Releases (`/api/apps/{appId}/releases`) [JWT/ApiKey]
+- CRUD do modelo flat antigo (mantido para backward compat)
+
+### Updates (`/api/updates`) [AppToken]
+- `GET /check?app=X&releaseVersion=V&platform=P&channel=C` — **Novo**: retorna patches ativos
+- `GET /check?app=X&module=M&version=V&platform=P` — **Legacy**: retorna release mais recente
+- `GET /download/{id}` — Baixa DLL (tenta Patches primeiro, fallback Releases)
 
 ## Estrutura
 
 ```
-Program.cs                       — Setup: MongoDB, Auth (JWT+ApiKey+MultiScheme), CORS, endpoints
-appsettings.json                 — JWT secret, MongoDB connection, uploads path
+Program.cs                           — Setup: MongoDB, Auth multi-scheme, CORS, endpoints
+appsettings.json                     — JWT placeholder, MongoDB localhost, uploads path
 Data/
-  MongoDbContext.cs              — MongoDB collections + indexes (unique Email, ApiKey, PackageName, AppToken)
+  MongoDbContext.cs                   — Collections + indexes (unique em email, apiKey, packageName, appToken, release version)
   Entities/
-    Account.cs                   — Email, PasswordHash (BCrypt), Name, ApiKey. BsonId com Guid
-    Subscription.cs              — Status enum (Active/Inactive/Trial), Plan, ExpiresAt
-    App.cs                       — PackageName (unique), DisplayName, AppToken, AccountId
-    Release.cs                   — ModuleName, Version, Platform, Channel, DllHash, DllSize, FileName
+    Account.cs                       — BsonId Guid, Email, PasswordHash, ApiKey
+    Subscription.cs                  — Status enum, Plan, ExpiresAt
+    App.cs                           — PackageName unique, AppToken, AccountId
+    AppRelease.cs                    — Version, Platform, DependencySnapshot[], GitTag
+    Patch.cs                         — ReleaseId FK, PatchNumber, ModuleName, DllHash, IsActive, GitTag
+    Release.cs                       — Legacy flat model
 Endpoints/
-  AuthEndpoints.cs               — Register, Login, Me
-  AppEndpoints.cs                — CRUD de apps
-  ReleaseEndpoints.cs            — Upload/List/Delete releases. SHA-256 hash. Salva em uploads/{appId}/
-  UpdateEndpoints.cs             — Check + Download para apps mobile (valida AppToken)
+  AuthEndpoints.cs                   — Register, Login, Me
+  AppEndpoints.cs                    — CRUD apps (deleta cascata em AppReleases + Patches + Releases)
+  AppReleaseEndpoints.cs             — CRUD releases com multipart upload + snapshot
+  PatchEndpoints.cs                  — CRUD patches com auto-increment e desativacao
+  ReleaseEndpoints.cs                — Legacy CRUD
+  UpdateEndpoints.cs                 — Check (v2 releaseVersion + legacy module) + Download
 Services/
-  TokenService.cs                — Gera JWT e tokens aleatorios (RandomNumberGenerator)
-  SubscriptionService.cs         — Mock ativo. Placeholder para Stripe
+  TokenService.cs                    — JWT + RandomNumberGenerator tokens
+  SubscriptionService.cs             — Mock ativo, placeholder Stripe
 Auth/
-  ApiKeyAuthHandler.cs           — Custom AuthenticationHandler para header X-Api-Key
+  ApiKeyAuthHandler.cs               — Custom handler para X-Api-Key
 ```
 
 ## Storage
-- **DB**: MongoDB (`codepush` database, collections: accounts, subscriptions, apps, releases)
-- **Driver**: MongoDB.Driver 3.4.0
-- **DLLs**: `uploads/{appId}/{releaseId}.dll` no filesystem
-- **JWT Secret**: Via appsettings ou env `CODEPUSH_JWT_SECRET`
-- **Indexes**: Criados automaticamente no startup via `EnsureIndexesAsync()` (unique em email, apiKey, packageName, appToken; compound em releases)
+- **DB**: MongoDB (collections: accounts, subscriptions, apps, appReleases, patches, releases)
+- **DLLs releases**: `uploads/{appId}/releases/{releaseId}/{moduleName}.dll`
+- **DLLs patches**: `uploads/{appId}/patches/{patchId}.dll`
+- **Env vars** (prioridade sobre appsettings): `MONGODB_CONNECTION_STRING`, `MONGODB_DATABASE_NAME`, `CODEPUSH_JWT_SECRET`
 
-## Como Rodar
-
-### Local
-```bash
-dotnet run --project Maui.CodePush.Server
-# Servidor em http://localhost:5000
-# Precisa de appsettings.Development.json com MongoDB connection string
-```
-
-### Docker (producao)
-```bash
-# Na VPS:
-# 1. Criar .env com as secrets (baseado em .env.example)
-# 2. docker compose pull && docker compose up -d
-```
-
-### GitHub Actions
-- Workflow: `.github/workflows/server-deploy.yml`
-- Trigger: push em `main` que muda `Maui.CodePush.Server/**`
-- Builda imagem Docker e pusha para `ghcr.io/felipebaltazar/codepush-server:latest`
-- Secrets usadas: `MONGODB_CONNECTION_STRING`, `MONGODB_DATABASE_NAME`, `CODEPUSH_JWT_SECRET`
-
-### Environment Variables (prioridade sobre appsettings)
-| Variavel | Descricao |
-|----------|-----------|
-| `MONGODB_CONNECTION_STRING` | Connection string do MongoDB Atlas |
-| `MONGODB_DATABASE_NAME` | Nome do database (default: codepush) |
-| `CODEPUSH_JWT_SECRET` | Chave secreta para JWT tokens |
+## Deploy
+- Docker container em VPS, porta 8080
+- CI/CD: push em main → GitHub Actions → Docker build → ghcr.io → deploy com aprovacao (environment Production)
+- `docker compose pull && docker compose up -d` na VPS

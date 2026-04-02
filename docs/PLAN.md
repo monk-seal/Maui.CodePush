@@ -77,32 +77,36 @@ _ResolveAssemblies -> _PrepareAssemblies -> _CollectAssembliesToCompress
 
 ### Pendente
 - [ ] Validacao em device iOS fisico (MtouchInterpreter + Assembly.Load)
-- [ ] Teste end-to-end com servidor HTTP simples (nao adb push)
+- [x] Teste end-to-end com servidor real (CLI -> Server -> Mobile)
 - [x] Teste de rollback em device (via CLI `codepush rollback --all --restart`)
 - [ ] Publicacao do NuGet package (preview)
 
 ---
 
-## Fase 2 — Servidor + CLI
+## Fase 2 — Servidor + CLI + Release/Patch
 
-### CLI Tool (Status: MVP Completo)
-Implementado `Maui.CodePush.Cli/` com 4 comandos: `init`, `devices`, `release`, `rollback`.
-Validado end-to-end em device fisico. Detalhes em `Maui.CodePush.Cli/CLAUDE.md`.
+### CLI Tool (Status: Completo)
+8 comandos: `login`, `init`, `apps`, `release` (create/list/deploy), `patch`, `devices`, `rollback`, `update`.
 
+- [x] `codepush login` com servidor embutido no build
 - [x] `codepush init` com auto-detect de csproj
-- [x] `codepush devices` com descoberta automatica do adb
-- [x] `codepush release` com build + deploy via adb
-- [x] `codepush rollback` com limpeza de modules no device
-- [ ] `codepush release --server` upload para servidor HTTP (requer backend)
+- [x] `codepush apps list/add` com CRUD no servidor
+- [x] `codepush release create` com dotnet publish + deps snapshot + git tag
+- [x] `codepush release` deploy via servidor ou adb
+- [x] `codepush patch` com check de compatibilidade + git tag
+- [x] `codepush devices/rollback/update`
+- [x] `--dotnet-args` em todos os comandos de build
+- [x] Banner com CODE PUSH, spinners, cores ANSI
 
-### Backend API (Status: MVP Completo)
-Implementado `Maui.CodePush.Server/` com ASP.NET Core Minimal API + EF Core SQLite.
-Validado end-to-end via curl. Detalhes em `Maui.CodePush.Server/CLAUDE.md`.
+### Backend API (Status: Completo)
+ASP.NET Core + MongoDB. Deploy em Docker na VPS com CI/CD.
 
-- [x] Auth: registro, login (JWT), API key (CI/CD)
-- [x] Apps: CRUD com ownership por account, package name unico
-- [x] Releases: upload multipart com SHA-256, storage em filesystem
-- [x] Updates: check + download com validacao de AppToken
+- [x] Auth: JWT + API Key multi-scheme
+- [x] Apps: CRUD com ownership, package name unico
+- [x] AppReleases: versoes da loja com DependencySnapshot
+- [x] Patches: vinculados a releases, PatchNumber auto-increment
+- [x] Updates: check por releaseVersion + legacy por module
+- [x] Download com verificacao de AppToken
 - [x] Subscription: mock ativo (pronto para Stripe)
 - [ ] Integrar CLI `release` com server (upload via HTTP em vez de adb)
 - [ ] Integrar lib mobile `UpdateClient` com server real
