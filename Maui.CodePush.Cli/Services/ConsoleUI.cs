@@ -18,95 +18,64 @@ public static class ConsoleUI
     public static void PrintBanner()
     {
         const string b = "║";
-        // Bot: original art from user, trimmed to fit box
-        var lines = new List<(string color, string text)>
-        {
-            (Purple,  @"                  =:                       "),
-            (Purple,  @"               :=++-                       "),
-            (Purple,  @"              :**##*-.                ---=:"),
-            (Purple,  @"           ===+=---:::::::.          .======-"),
-            (Purple,  @"        -++==---:::::::::::::.     ==+##*##+*-"),
-            (Purple,  @"      -+++==---::::::::::::::::    -*#####%#:"),
-            (Purple,  @"     -+++===--::::::::::::::::---.   .+###%%="),
-            (Purple,  @"    -++++==---::::::::::::::::---=.    :==*+."),
-            (Purple,  @"   :+++++===--::::::::::::::::---=+    -=++-"),
-            (Purple,  @"   -++++++==---                  -*:  -==++."),
-            (Cyan,    @"   =++**##*==--    .#-       .*- :#--==+++."),
-            (Cyan,    @"   ==##*###*===.    #=       .#-  ===++*=. "),
-            (Cyan,    @"  :--+#####+++=:         ::::    +#%#+-.   "),
-            (Cyan,    @".---=+++++++++++*****************%%+.      "),
-            (Cyan,    @"--+%*+++++++++++++++++++#####*++#%=        "),
-            (Purple,  @"--+*=-                   *==+*  =%=        "),
-            (Purple,  @":==+=.   :-----------=====######@#-        "),
-            (Purple,  @":=+*=.     -=+++++++++++++++*#%*-          "),
-            (Purple,  @" ##*##+==:    :=+++******++#@%+:           "),
-            (Purple,  @" #####***+:     -=+%%#+++==+*-             "),
-            (Cyan,    @" =###*==*+.     ==+*-    :==+-             "),
-            (Cyan,    @"  ====+##-      ==++.    .==+-             "),
-            (Cyan,    @"   .-=++:      .###+.    :###=             "),
-            (Cyan,    @"               =###+:    =###+:            "),
-            (Cyan,    @"               ++++*-    *#*++=:           "),
-            (Purple,  @"              -====++.   ###====:          "),
-            (Purple,  @"              ======+=   ###*=====.        "),
-            (Purple,  @"             =+*****++:  #####****+=       "),
-            (Purple,  @"             -==++++++:  #####++++=+:      "),
-            (DimGray, @"                :---:      .::-::::        "),
-        };
-
-        // Title block
-        string[] title =
-        [
-            @" ██████╗ ██████╗ ██████╗ ███████╗  ██████╗ ██╗  ██╗███████╗██╗  ██╗",
-            @"██╔════╝██╔═══██╗██╔══██╗██╔════╝  ██╔══██╗██║  ██║██╔════╝██║  ██║",
-            @"██║     ██║   ██║██║  ██║█████╗    ██████╔╝██║  ██║███████╗███████║",
-            @"██║     ██║   ██║██║  ██║██╔══╝    ██╔═══╝ ██║  ██║╚════██║██╔══██║",
-            @"╚██████╗╚██████╔╝██████╔╝███████╗  ██║     ╚██████╔╝███████║██║  ██║",
-            @" ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝  ╚═╝      ╚═════╝╚══════╝╚═╝  ╚═╝",
-        ];
-
-        var boxWidth = 80;
+        var boxWidth = 76;
         var top =    $"  {DimGray}╔{new string('═', boxWidth)}╗{Reset}";
         var empty =  $"  {DimGray}{b}{new string(' ', boxWidth)}{b}{Reset}";
         var bottom = $"  {DimGray}╚{new string('═', boxWidth)}╝{Reset}";
 
+        string[] title =
+        [
+            @" ██████╗ ██████╗ ██████╗ ███████╗",
+            @"██╔════╝██╔═══██╗██╔══██╗██╔════╝",
+            @"██║     ██║   ██║██║  ██║█████╗  ",
+            @"██║     ██║   ██║██║  ██║██╔══╝  ",
+            @"╚██████╗╚██████╔╝██████╔╝███████╗",
+            @" ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝",
+        ];
+
+        string[] title2 =
+        [
+            @"██████╗ ██╗   ██╗███████╗██╗  ██╗",
+            @"██╔══██╗██║   ██║██╔════╝██║  ██║",
+            @"██████╔╝██║   ██║███████╗███████║",
+            @"██╔═══╝ ██║   ██║╚════██║██╔══██║",
+            @"██║     ╚██████╔╝███████║██║  ██║",
+            @" ╚═╝      ╚═════╝╚══════╝╚═╝  ╚═╝",
+        ];
+
         Console.WriteLine();
         Console.WriteLine(top);
         Console.WriteLine(empty);
+        Console.WriteLine(empty);
 
-        // Bot centered in box
-        foreach (var (color, text) in lines)
+        // CODE on left, PUSH on right — side by side
+        for (var i = 0; i < title.Length; i++)
         {
-            var padded = text.Length < boxWidth ? text + new string(' ', boxWidth - text.Length) : text[..boxWidth];
-            var left = (boxWidth - text.TrimEnd().Length) / 2;
-            var centered = new string(' ', Math.Max(0, left)) + text.TrimEnd();
-            centered = centered.Length < boxWidth ? centered + new string(' ', boxWidth - centered.Length) : centered[..boxWidth];
-            Console.WriteLine($"  {DimGray}{b}{Reset}{color}{centered}{Reset}{DimGray}{b}{Reset}");
+            var line = $"  {title[i]}  {title2[i]}";
+            var pad = boxWidth - line.Length;
+            var left = pad / 2;
+            var right = pad - left;
+            var centered = new string(' ', Math.Max(0, left)) + line + new string(' ', Math.Max(0, right));
+            if (centered.Length > boxWidth)
+                centered = centered[..boxWidth];
+            Console.WriteLine($"  {DimGray}{b}{Reset}{Bold}{Purple}{centered}{Reset}{DimGray}{b}{Reset}");
         }
 
         Console.WriteLine(empty);
 
-        // Title centered in box (fixed padding since Unicode width != string.Length)
-        var titleVisualWidth = 68; // measured visual column width of widest title line
-        var titlePadLeft = (boxWidth - titleVisualWidth) / 2;
-        foreach (var line in title)
-        {
-            var padded = new string(' ', titlePadLeft) + line;
-            var remaining = boxWidth - titlePadLeft - line.Length;
-            padded += new string(' ', Math.Max(0, remaining));
-            Console.WriteLine($"  {DimGray}{b}{Reset}{Bold}{Purple}{padded}{Reset}{DimGray}{b}{Reset}");
-        }
+        // Subtitle
+        var sub = ".NET MAUI";
+        var subPad = (boxWidth - sub.Length) / 2;
+        var subLine = new string(' ', subPad) + sub + new string(' ', boxWidth - subPad - sub.Length);
+        Console.WriteLine($"  {DimGray}{b}{Reset}{Cyan}{subLine}{Reset}{DimGray}{b}{Reset}");
 
         Console.WriteLine(empty);
 
         // Version + tagline
-        var version = $"v0.1.0-pre";
-        var tagline = "OTA updates for .NET MAUI — no app store review";
-        var versionLine = $"{version}  {DimGray}│{Reset}  {tagline}";
-        var versionRaw = $"{version}  │  {tagline}";
+        var versionRaw = "v0.1.0-pre  │  OTA updates — no app store review";
         var vLeft = (boxWidth - versionRaw.Length) / 2;
-        var vPad = new string(' ', Math.Max(0, vLeft));
         var vRight = boxWidth - vLeft - versionRaw.Length;
-        Console.WriteLine($"  {DimGray}{b}{Reset}{vPad}{Gray}{version}  {DimGray}│{Reset}  {DimGray}{tagline}{new string(' ', Math.Max(0, vRight))}{Reset}{DimGray}{b}{Reset}");
+        Console.WriteLine($"  {DimGray}{b}{Reset}{new string(' ', Math.Max(0, vLeft))}{Gray}v0.1.0-pre  {DimGray}│{Reset}  {DimGray}OTA updates — no app store review{new string(' ', Math.Max(0, vRight))}{Reset}{DimGray}{b}{Reset}");
 
         Console.WriteLine(empty);
         Console.WriteLine(bottom);
