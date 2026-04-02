@@ -1,16 +1,16 @@
-name: CLI - Build & Publish
+name: NuGet - Build & Publish Library
 
 on:
   push:
     branches: [main]
     paths:
-      - 'Maui.CodePush.Cli/**'
-      - '.github/workflows/cli-build.yml'
+      - 'Maui.CodePush/**'
+      - '.github/workflows/nuget-publish.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'Maui.CodePush.Cli/**'
-      - '.github/workflows/cli-build.yml'
+      - 'Maui.CodePush/**'
+      - '.github/workflows/nuget-publish.yml'
   workflow_dispatch:
 
 jobs:
@@ -29,22 +29,22 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Inject server URL
-        run: sed -i 's|#{CODEPUSH_SERVER_URL}#|${{ secrets.CODEPUSH_SERVER_URL }}|g' Maui.CodePush.Cli/appsettings.json
+      - name: Install MAUI workload
+        run: dotnet workload install maui-android maui-ios
 
       - name: Restore
-        run: dotnet restore Maui.CodePush.Cli/Maui.CodePush.Cli.csproj
+        run: dotnet restore Maui.CodePush/Maui.CodePush.csproj
 
       - name: Build
-        run: dotnet build Maui.CodePush.Cli/Maui.CodePush.Cli.csproj -c Release --no-restore
+        run: dotnet build Maui.CodePush/Maui.CodePush.csproj -c Release --no-restore
 
       - name: Pack
-        run: dotnet pack Maui.CodePush.Cli/Maui.CodePush.Cli.csproj -c Release --no-build -o ./artifacts
+        run: dotnet pack Maui.CodePush/Maui.CodePush.csproj -c Release --no-build -o ./artifacts
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: codepush-cli
+          name: codepush-nuget
           path: ./artifacts/*.nupkg
 
   # ──────────────────────────────────────────────
@@ -60,7 +60,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: codepush-cli
+          name: codepush-nuget
           path: ./artifacts
 
       - name: Setup .NET
