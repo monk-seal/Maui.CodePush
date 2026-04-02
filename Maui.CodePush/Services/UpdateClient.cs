@@ -16,6 +16,9 @@ public class UpdateClient
 
         if (!string.IsNullOrEmpty(options.ServerUrl))
             _httpClient.BaseAddress = new Uri(options.ServerUrl.TrimEnd('/') + "/");
+
+        if (!string.IsNullOrEmpty(options.AppToken))
+            _httpClient.DefaultRequestHeaders.Add("X-CodePush-Token", options.AppToken);
     }
 
     public async Task<UpdateCheckResult?> CheckForUpdatesAsync(
@@ -23,13 +26,13 @@ public class UpdateClient
         string currentVersion,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(_options.ServerUrl))
+        if (string.IsNullOrEmpty(_options.ServerUrl) || string.IsNullOrEmpty(_options.AppId))
             return null;
 
         try
         {
             var platform = GetPlatform();
-            var url = $"api/updates/check?app={Uri.EscapeDataString(_options.AppKey ?? "")}" +
+            var url = $"api/updates/check?app={Uri.EscapeDataString(_options.AppId)}" +
                       $"&module={Uri.EscapeDataString(moduleName)}" +
                       $"&version={Uri.EscapeDataString(currentVersion)}" +
                       $"&platform={Uri.EscapeDataString(platform)}" +
@@ -64,7 +67,6 @@ public class UpdateClient
             await contentStream.CopyToAsync(fileStream, cancellationToken);
             fileStream.Close();
 
-            // Verify hash
             if (!string.IsNullOrEmpty(updateInfo.Hash))
             {
                 if (!ModuleManager.VerifyHash(tempFilePath, updateInfo.Hash))
@@ -80,31 +82,6 @@ public class UpdateClient
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[CodePush] Download failed for {updateInfo.Name}: {ex.Message}");
-            return null;
-        }
-    }
-
-    public async Task<string?> DownloadModuleFromUrlAsync(
-        string moduleName,
-        string downloadUrl,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var tempFilePath = Path.Combine(_tempPath, $"{moduleName}.dll");
-
-            using var response = await _httpClient.GetAsync(downloadUrl, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var fileStream = File.Create(tempFilePath);
-            await contentStream.CopyToAsync(fileStream, cancellationToken);
-
-            return tempFilePath;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[CodePush] Download failed for {moduleName}: {ex.Message}");
             return null;
         }
     }

@@ -13,10 +13,10 @@ public static class MauiProgram
             {
                 options.AddModule("Maui.CodePush.Demo.Feature");
 
-                // Phase 2: configure server
-                // options.ServerUrl = "https://codepush.example.com";
-                // options.AppKey = "demo-app-key";
-                // options.CheckOnStartup = true;
+                // Server configuration — fill with values from `codepush apps list`
+                // options.ServerUrl = "https://your-codepush-server.com";
+                // options.AppId = "your-app-id-guid";
+                // options.AppToken = "your-app-token";
             })
             .ConfigureFonts(fonts =>
             {

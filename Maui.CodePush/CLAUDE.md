@@ -18,7 +18,7 @@ Pacote: `Maui.CodePush` versao `0.1.0-pre`. TFM: `net9.0-android;net9.0-ios`.
 - `IAssemblyCollection.cs` — Interface interna (`void AddAssembly(string)`). Implementada por `AssemblyRegister`.
 
 ### Models/
-- `CodePushOptions.cs` — Config do consumidor: `ServerUrl`, `AppKey`, `Channel`, `UpdatePolicy`, `AddModule()`. O `AssemblyRegister` interno eh populado via `AddModule()`.
+- `CodePushOptions.cs` — Config do consumidor: `ServerUrl`, `AppId`, `AppToken`, `Channel`, `UpdatePolicy`, `AddModule()`. O `AssemblyRegister` interno eh populado via `AddModule()`.
 - `ModuleManifest.cs` — JSON persistido em `Modules/codepush-manifest.json`. Contem `appVersion`, `platform`, `lastChecked`, dicionario de `ModuleInfo`.
 - `ModuleInfo.cs` — Estado de um modulo: `Version`, `Hash` (SHA-256), `DownloadedAt`, `AppliedAt`, `PreviousHash`, `Status` (Embedded/Active/Pending/RolledBack).
 - `UpdateCheckResult.cs` — Resposta do servidor: `UpdateAvailable` bool + lista de `ModuleUpdateInfo` (name, version, downloadUrl, hash, size, isMandatory).

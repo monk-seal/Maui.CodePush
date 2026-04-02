@@ -4,7 +4,9 @@ public class CodePushOptions
 {
     public string? ServerUrl { get; set; }
 
-    public string? AppKey { get; set; }
+    public string? AppId { get; set; }
+
+    public string? AppToken { get; set; }
 
     public string Channel { get; set; } = "production";
 

@@ -148,3 +148,10 @@ Fix critico: `Program.cs` sincroniza env var `CODEPUSH_JWT_SECRET` no `builder.C
 - Servidor rodando em producao via Docker container (VPS, porta 8080)
 - MongoDB Atlas conectado e persistindo
 - Fluxo completo validado: registro -> login -> create app -> upload release -> check update -> download
+
+### Integracao lib mobile com servidor (2026-04-02)
+- `CodePushOptions`: substituido `AppKey` por `AppId` + `AppToken` (alinhado com modelo de seguranca do servidor)
+- `UpdateClient`: envia `X-CodePush-Token` header em todas as requests + `AppId` no query param de check
+- Consumidor configura: `options.ServerUrl`, `options.AppId`, `options.AppToken`
+- `CheckUpdatesAsync()` agora consulta o servidor real e baixa DLLs com verificacao de hash
+- CLI: comando `update` para self-update com `--pre` para pre-releases
