@@ -1,7 +1,12 @@
-name: Server - Build & Push Docker Image
+name: Server - Build, Validate & Deploy
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'Maui.CodePush.Server/**'
+      - '.github/workflows/server-deploy.yml'
+  pull_request:
     branches: [main]
     paths:
       - 'Maui.CodePush.Server/**'
@@ -13,7 +18,10 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/codepush-server
 
 jobs:
-  build-and-push:
+  # ──────────────────────────────────────────────
+  # Build & Validate — runs on every PR and push
+  # ──────────────────────────────────────────────
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,7 +31,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore Maui.CodePush.Server/Maui.CodePush.Server.csproj
+
+      - name: Build
+        run: dotnet build Maui.CodePush.Server/Maui.CodePush.Server.csproj -c Release --no-restore
+
       - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -39,7 +59,17 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest
 
+      - name: Build Docker image
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Maui.CodePush.Server/Dockerfile
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+
       - name: Build and push Docker image
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -47,3 +77,27 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # ──────────────────────────────────────────────
+  # Deploy — only on main, requires approval
+  # ──────────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    environment: Production
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            cd /opt/codepush
+            docker compose pull
+            docker compose up -d
+            sleep 3
+            docker ps --filter name=codepush-server --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo "Deploy complete"
