@@ -17,7 +17,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
@@ -31,7 +31,7 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Install MAUI workloads
-        run: dotnet workload install maui-android maui-ios
+        run: dotnet workload install maui
 
       - name: Restore
         run: dotnet restore Maui.CodePush/Maui.CodePush.csproj
