@@ -5,7 +5,7 @@ namespace Maui.CodePush.Cli.Services;
 
 public class ProjectBuilder
 {
-    public async Task<string> BuildModuleAsync(string projectPath, string platform, string configuration = "Release")
+    public async Task<string> BuildModuleAsync(string projectPath, string platform, string configuration = "Release", string? extraArgs = null)
     {
         ValidateProject(projectPath, platform);
 
@@ -21,7 +21,7 @@ public class ProjectBuilder
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = $"build \"{projectPath}\" -f {tfm} -c {configuration} --no-restore",
+            Arguments = $"build \"{projectPath}\" -f {tfm} -c {configuration} --no-restore {extraArgs}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,

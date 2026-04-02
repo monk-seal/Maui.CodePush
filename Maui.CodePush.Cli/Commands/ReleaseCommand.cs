@@ -21,12 +21,13 @@ public static class ReleaseCommand
         var versionOption = new Option<string>("--version", "-v") { Description = "Release version (server mode)", DefaultValueFactory = _ => "1.0.0" };
         var channelOption = new Option<string>("--channel") { Description = "Release channel", DefaultValueFactory = _ => "production" };
         var localOption = new Option<bool>("--local") { Description = "Force deploy via adb instead of server" };
+        var dotnetArgsOption = new Option<string?>("--dotnet-args") { Description = "Extra arguments passed to dotnet build" };
 
         var command = new Command("release", "Manage releases and deploy module updates")
         {
             pathsArgument, deviceOption, packageNameOption, platformOption,
             outputOption, noBuildOption, configOption, restartOption,
-            versionOption, channelOption, localOption
+            versionOption, channelOption, localOption, dotnetArgsOption
         };
 
         // Subcommands
@@ -48,7 +49,8 @@ public static class ReleaseCommand
                     parseResult.GetValue(restartOption),
                     parseResult.GetValue(versionOption)!,
                     parseResult.GetValue(channelOption)!,
-                    parseResult.GetValue(localOption));
+                    parseResult.GetValue(localOption),
+                    parseResult.GetValue(dotnetArgsOption));
             }
             catch (Exception ex) when (ex is FileNotFoundException or AdbException or InvalidOperationException or ArgumentException)
             {
@@ -61,7 +63,7 @@ public static class ReleaseCommand
 
     private static async Task ExecuteAsync(string[] paths, string? device, string? packageName,
         string? platform, string? output, bool noBuild, string configuration, bool restart,
-        string version, string channel, bool local)
+        string version, string channel, bool local, string? dotnetArgs)
     {
         var configManager = new ConfigManager();
         var builder = new ProjectBuilder();
@@ -87,7 +89,7 @@ public static class ReleaseCommand
             if (path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) && !noBuild)
             {
                 var dllPath = await ConsoleUI.SpinnerAsync($"Building {name} ({platform}, {configuration})",
-                    async () => await builder.BuildModuleAsync(path, platform, configuration));
+                    async () => await builder.BuildModuleAsync(path, platform, configuration, dotnetArgs));
                 deployments.Add((name, dllPath));
             }
             else
@@ -235,10 +237,11 @@ public static class ReleaseCommand
         var configOpt = new Option<string>("--configuration", "-c") { Description = "Build configuration", DefaultValueFactory = _ => "Release" };
         var noGitTagOpt = new Option<bool>("--no-git-tag") { Description = "Skip git tag" };
         var appProjectOpt = new Option<string?>("--app-project") { Description = "App .csproj path (for dotnet publish)" };
+        var dotnetArgsOpt = new Option<string?>("--dotnet-args") { Description = "Extra arguments passed to dotnet publish/build (e.g. \"/p:AndroidSigningKeyPass=secret\")" };
 
         var cmd = new Command("create", "Create a new release (app store version) with dependency snapshot")
         {
-            pathsArg, versionOpt, platformOpt, channelOpt, configOpt, noGitTagOpt, appProjectOpt
+            pathsArg, versionOpt, platformOpt, channelOpt, configOpt, noGitTagOpt, appProjectOpt, dotnetArgsOpt
         };
 
         cmd.SetAction(async (parseResult, _) =>
@@ -252,6 +255,7 @@ public static class ReleaseCommand
                 var configuration = parseResult.GetValue(configOpt)!;
                 var noGitTag = parseResult.GetValue(noGitTagOpt);
                 var appProject = parseResult.GetValue(appProjectOpt);
+                var dotnetArgs = parseResult.GetValue(dotnetArgsOpt);
 
                 var configManager = new ConfigManager();
                 var loaded = configManager.TryLoadConfig();
@@ -280,7 +284,7 @@ public static class ReleaseCommand
                         var startInfo = new System.Diagnostics.ProcessStartInfo
                         {
                             FileName = "dotnet",
-                            Arguments = $"publish \"{appProject}\" -f {tfm} -c {configuration}",
+                            Arguments = $"publish \"{appProject}\" -f {tfm} -c {configuration} {dotnetArgs}",
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
                             UseShellExecute = false,
@@ -313,7 +317,7 @@ public static class ReleaseCommand
                     if (path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
                     {
                         dllPath = await ConsoleUI.SpinnerAsync($"Building {name}",
-                            () => projBuilder.BuildModuleAsync(path, platform, configuration));
+                            () => projBuilder.BuildModuleAsync(path, platform, configuration, dotnetArgs));
                     }
                     else
                     {

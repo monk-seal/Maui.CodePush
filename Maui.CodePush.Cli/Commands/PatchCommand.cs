@@ -17,11 +17,12 @@ public static class PatchCommand
         var noBuildOption = new Option<bool>("--no-build") { Description = "Skip build" };
         var noGitTagOption = new Option<bool>("--no-git-tag") { Description = "Skip git tag creation" };
         var mandatoryOption = new Option<bool>("--mandatory") { Description = "Mark as mandatory update" };
+        var dotnetArgsOption = new Option<string?>("--dotnet-args") { Description = "Extra arguments passed to dotnet build" };
 
         var command = new Command("patch", "Create a code push patch for an existing release")
         {
             pathsArgument, releaseOption, platformOption, channelOption,
-            configOption, noBuildOption, noGitTagOption, mandatoryOption
+            configOption, noBuildOption, noGitTagOption, mandatoryOption, dotnetArgsOption
         };
 
         command.SetAction(async (parseResult, _) =>
@@ -36,6 +37,7 @@ public static class PatchCommand
                 var noBuild = parseResult.GetValue(noBuildOption);
                 var noGitTag = parseResult.GetValue(noGitTagOption);
                 var mandatory = parseResult.GetValue(mandatoryOption);
+                var dotnetArgs = parseResult.GetValue(dotnetArgsOption);
 
                 var configManager = new ConfigManager();
                 var loaded = configManager.TryLoadConfig();
@@ -93,7 +95,7 @@ public static class PatchCommand
                     if (path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) && !noBuild)
                     {
                         dllPath = await ConsoleUI.SpinnerAsync($"Building {name}",
-                            () => builder.BuildModuleAsync(path, platform, configuration));
+                            () => builder.BuildModuleAsync(path, platform, configuration, dotnetArgs));
                     }
                     else
                     {
