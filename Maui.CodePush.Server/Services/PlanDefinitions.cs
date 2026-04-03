@@ -10,13 +10,13 @@ public static class PlanDefinitions
         {
             "5,000 Patch Installs", "Unlimited Apps & Releases", "Community Support"
         }),
-        [PlanTier.Pro] = new("Pro", 2000, 50_000, 40, "price_pro_monthly_id", new[]
+        [PlanTier.Pro] = new("Pro", 2000, 50_000, 40, "price_1TI131DuJYKBBQ2UtDxVjTqC", new[]
         {
             "50,000 Patch Installs", "$1 per 2,500 overage", "CI for private repos (100h)",
             "Console", "Collaboration", "Patch Rollbacks", "Signed Patches",
             "Usage Notifications", "Staging", "Email Support", "Admin + Developer roles"
         }),
-        [PlanTier.Business] = new("Business", 40000, 1_000_000, 40, "price_business_monthly_id", new[]
+        [PlanTier.Business] = new("Business", 40000, 1_000_000, 40, "price_1TI133DuJYKBBQ2UVPUjHwm9", new[]
         {
             "1,000,000 Patch Installs", "$1 per 2,500 overage", "CI for private repos (100h)",
             "Analytics", "Invoice Billing", "+Viewer role", "Private Discord Support"
