@@ -7,6 +7,7 @@ using Maui.CodePush.Server.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -94,17 +95,20 @@ using (var scope = app.Services.CreateScope())
 var uploadsPath = app.Configuration["Uploads:Path"] ?? "uploads";
 Directory.CreateDirectory(uploadsPath);
 
-// Middleware
+// Middleware — UseHttpMetrics before auth so all requests (including 401/403) are measured
 app.UseCors();
-app.UseHttpMetrics(); // Prometheus HTTP request metrics
+app.UseHttpMetrics();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Health check
-app.MapGet("/health", (MongoDbContext db) =>
+// Health check with real MongoDB ping
+app.MapGet("/health", async (MongoDbContext db) =>
 {
     try
     {
+        // Probe MongoDB connectivity
+        await db.Accounts.Find(_ => true).Limit(1).FirstOrDefaultAsync();
+
         return Results.Ok(new
         {
             status = "healthy",
@@ -115,12 +119,17 @@ app.MapGet("/health", (MongoDbContext db) =>
     }
     catch
     {
-        return Results.StatusCode(503);
+        return Results.Json(new
+        {
+            status = "unhealthy",
+            service = "codepush-server",
+            timestamp = DateTime.UtcNow
+        }, statusCode: 503);
     }
-}).WithTags("Health").ExcludeFromDescription();
+}).WithTags("Health");
 
-// Prometheus metrics endpoint
-app.MapMetrics().DisableCors(); // exposes /metrics without applying the global CORS policy
+// Prometheus metrics — restricted to localhost (nginx/prometheus only, not public)
+app.MapMetrics().RequireHost("localhost", "127.0.0.1", "codepush-server");
 
 // Map endpoints
 app.MapAuthEndpoints();
