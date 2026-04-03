@@ -82,7 +82,7 @@ public static class UpdateEndpoints
                 {
                     name = latestRelease.ModuleName,
                     version = latestRelease.Version,
-                    downloadUrl = $"{cdnBase}/patches/{appId}/patches/{latestRelease.Id}.dll?token={appToken}",
+                    downloadUrl = $"{cdnBase}/patches/{appId}/patches/{latestRelease.Id}.dll",
                     hash = latestRelease.DllHash,
                     size = latestRelease.DllSize,
                     isMandatory = latestRelease.IsMandatory
@@ -141,7 +141,7 @@ public static class UpdateEndpoints
             name = p.ModuleName,
             patchNumber = p.PatchNumber,
             version = p.Version,
-            downloadUrl = $"{cdnBase}/patches/{p.AppId}/patches/{p.Id}.dll?token={appToken}",
+            downloadUrl = $"{cdnBase}/patches/{p.AppId}/patches/{p.Id}.dll",
             hash = p.DllHash,
             size = p.DllSize,
             isMandatory = p.IsMandatory

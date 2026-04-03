@@ -101,7 +101,8 @@ public static class StripeWebhookEndpoints
 
         var status = stripeSub.Status switch
         {
-            "active" or "trialing" => SubscriptionStatus.Active,
+            "active" => SubscriptionStatus.Active,
+            "trialing" => SubscriptionStatus.Trial,
             _ => SubscriptionStatus.Inactive
         };
 
@@ -139,13 +140,16 @@ public static class StripeWebhookEndpoints
         if (string.IsNullOrEmpty(customerId))
             return;
 
-        // Reset patch installs on new billing period
+        // Reset patch installs on new billing period — use Stripe's dates, not local clock
+        var periodStart = invoice.PeriodStart;
+        var periodEnd = invoice.PeriodEnd;
+
         var filter = Builders<Subscription>.Filter.Eq(s => s.StripeCustomerId, customerId);
         var update = Builders<Subscription>.Update
             .Set(s => s.PatchInstallsUsed, 0L)
             .Set(s => s.Status, SubscriptionStatus.Active)
-            .Set(s => s.CurrentPeriodStart, DateTime.UtcNow)
-            .Set(s => s.CurrentPeriodEnd, DateTime.UtcNow.AddMonths(1));
+            .Set(s => s.CurrentPeriodStart, periodStart)
+            .Set(s => s.CurrentPeriodEnd, periodEnd);
 
         await db.Subscriptions.UpdateOneAsync(filter, update);
     }

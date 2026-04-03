@@ -109,7 +109,7 @@ public class BlobStorageService
                 var blob = blobContainer.GetBlobClient(blobName);
                 await blob.DeleteIfExistsAsync();
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[BlobStorage] Error: {ex.Message}"); }
             return;
         }
 
@@ -132,7 +132,7 @@ public class BlobStorageService
                         await container.DeleteBlobIfExistsAsync(blob.Name);
                     }
                 }
-                catch { }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[BlobStorage] Error: {ex.Message}"); }
             }
             return;
         }

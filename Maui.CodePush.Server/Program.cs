@@ -133,8 +133,9 @@ app.MapGet("/health", async (MongoDbContext db) =>
     }
 }).WithTags("Health");
 
-// Prometheus metrics — restricted to localhost (nginx/prometheus only, not public)
-app.MapMetrics().RequireHost("localhost", "127.0.0.1", "codepush-server");
+// Prometheus metrics — restricted via nginx (only internal docker network reaches 8080)
+// RequireHost is spoofable; actual protection is iptables + nginx (port 8080 blocked externally)
+app.MapMetrics();
 
 // Map endpoints
 app.MapAuthEndpoints();
