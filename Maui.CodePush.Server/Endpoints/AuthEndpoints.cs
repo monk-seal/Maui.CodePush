@@ -12,59 +12,10 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
-        group.MapPost("/register", Register);
         group.MapPost("/login", Login);
         group.MapGet("/me", GetMe).RequireAuthorization();
 
         return group;
-    }
-
-    private static async Task<IResult> Register(
-        RegisterRequest request,
-        MongoDbContext db,
-        TokenService tokenService)
-    {
-        if (string.IsNullOrWhiteSpace(request.Email) ||
-            string.IsNullOrWhiteSpace(request.Password) ||
-            string.IsNullOrWhiteSpace(request.Name))
-        {
-            return Results.BadRequest(new { error = "Email, password, and name are required." });
-        }
-
-        var exists = await db.Accounts.Find(a => a.Email == request.Email).AnyAsync();
-        if (exists)
-            return Results.Conflict(new { error = "An account with this email already exists." });
-
-        var account = new Account
-        {
-            Id = Guid.NewGuid(),
-            Email = request.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Name = request.Name,
-            ApiKey = TokenService.GenerateRandomToken(),
-            CreatedAt = DateTime.UtcNow
-        };
-
-        var subscription = new Subscription
-        {
-            Id = Guid.NewGuid(),
-            AccountId = account.Id,
-            Status = SubscriptionStatus.Active,
-            Plan = "pro",
-            ExpiresAt = null,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await db.Accounts.InsertOneAsync(account);
-        await db.Subscriptions.InsertOneAsync(subscription);
-
-        return Results.Ok(new
-        {
-            accountId = account.Id,
-            email = account.Email,
-            name = account.Name,
-            apiKey = account.ApiKey
-        });
     }
 
     private static async Task<IResult> Login(
@@ -119,5 +70,4 @@ public static class AuthEndpoints
     }
 }
 
-public record RegisterRequest(string Email, string Password, string Name);
 public record LoginRequest(string Email, string Password);

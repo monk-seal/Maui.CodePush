@@ -33,19 +33,6 @@ public class ServerClient
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
 
-    public async Task<JsonElement> RegisterAsync(string email, string password, string name)
-    {
-        var response = await _http.PostAsJsonAsync("api/auth/register", new { email, password, name });
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var err = await response.Content.ReadAsStringAsync();
-            throw new InvalidOperationException($"Register failed ({response.StatusCode}): {err}");
-        }
-
-        return await response.Content.ReadFromJsonAsync<JsonElement>();
-    }
-
     public async Task<JsonElement> GetMeAsync()
     {
         var response = await _http.GetAsync("api/auth/me");

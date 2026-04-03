@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Diagnostics;
 using Maui.CodePush.Cli.Services;
 
 namespace Maui.CodePush.Cli.Commands;
@@ -10,12 +11,10 @@ public static class LoginCommand
         var serverOption = new Option<string?>("--server", "-s") { Description = "Server URL (uses built-in default if omitted)" };
         var emailOption = new Option<string>("--email", "-e") { Description = "Account email", Required = true };
         var passwordOption = new Option<string>("--password") { Description = "Account password", Required = true };
-        var registerOption = new Option<bool>("--register") { Description = "Create a new account instead of logging in" };
-        var nameOption = new Option<string?>("--name") { Description = "Display name (required for --register)" };
 
         var command = new Command("login", "Authenticate with a CodePush server and save credentials")
         {
-            serverOption, emailOption, passwordOption, registerOption, nameOption
+            serverOption, emailOption, passwordOption
         };
 
         command.SetAction(async (parseResult, _) =>
@@ -23,8 +22,6 @@ public static class LoginCommand
             var server = parseResult.GetValue(serverOption);
             var email = parseResult.GetValue(emailOption)!;
             var password = parseResult.GetValue(passwordOption)!;
-            var register = parseResult.GetValue(registerOption);
-            var name = parseResult.GetValue(nameOption);
 
             try
             {
@@ -39,38 +36,15 @@ public static class LoginCommand
                 }
 
                 var client = new ServerClient(server);
-                string? token = null;
-                string? apiKey = null;
 
-                if (register)
-                {
-                    if (string.IsNullOrEmpty(name))
-                    {
-                        ConsoleUI.Error("--name is required for registration.");
-                        return;
-                    }
+                var result = await ConsoleUI.SpinnerAsync("Logging in",
+                    async () => await client.LoginAsync(email, password));
 
-                    var result = await ConsoleUI.SpinnerAsync("Creating account",
-                        async () => await client.RegisterAsync(email, password, name));
+                var token = result.GetProperty("token").GetString();
 
-                    apiKey = result.GetProperty("apiKey").GetString();
-
-                    var loginResult = await ConsoleUI.SpinnerAsync("Logging in",
-                        async () => await client.LoginAsync(email, password));
-
-                    token = loginResult.GetProperty("token").GetString();
-                }
-                else
-                {
-                    var result = await ConsoleUI.SpinnerAsync("Logging in",
-                        async () => await client.LoginAsync(email, password));
-
-                    token = result.GetProperty("token").GetString();
-
-                    var authedClient = new ServerClient(server, token: token);
-                    var me = await authedClient.GetMeAsync();
-                    apiKey = me.GetProperty("apiKey").GetString();
-                }
+                var authedClient = new ServerClient(server, token: token);
+                var me = await authedClient.GetMeAsync();
+                var apiKey = me.GetProperty("apiKey").GetString();
 
                 var config = loaded?.Config ?? new Models.CodePushConfig();
                 var dir = loaded?.ProjectDir ?? Directory.GetCurrentDirectory();
@@ -92,6 +66,32 @@ public static class LoginCommand
             {
                 ConsoleUI.Error(ex.Message);
             }
+        });
+
+        return command;
+    }
+
+    public static Command CreateRegisterCommand()
+    {
+        var command = new Command("register", "Create an account on the Monkseal website");
+
+        command.SetAction((_, _) =>
+        {
+            const string url = "https://monkseal.dev/register";
+            ConsoleUI.Info($"Opening {url}...");
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                ConsoleUI.Success("Browser opened. Complete registration on the website, then run: codepush login");
+            }
+            catch
+            {
+                ConsoleUI.Info($"Open this URL in your browser: {url}");
+            }
+
+            ConsoleUI.Blank();
+            return Task.CompletedTask;
         });
 
         return command;
