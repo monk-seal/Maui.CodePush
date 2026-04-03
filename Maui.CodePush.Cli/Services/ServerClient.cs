@@ -33,6 +33,19 @@ public class ServerClient
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
 
+    public async Task<JsonElement> CreateDeviceCodeAsync()
+    {
+        var response = await _http.PostAsync("api/auth/device", null);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    public async Task<JsonElement> PollDeviceTokenAsync(string deviceCode)
+    {
+        var response = await _http.PostAsJsonAsync("api/auth/device/token", new { deviceCode });
+        return await response.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
     public async Task<JsonElement> GetMeAsync()
     {
         var response = await _http.GetAsync("api/auth/me");
