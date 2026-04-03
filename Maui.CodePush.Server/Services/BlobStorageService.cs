@@ -26,7 +26,8 @@ public class BlobStorageService
 
     public async Task<string> UploadReleaseAsync(Guid appId, Guid releaseId, string moduleName, byte[] data)
     {
-        var blobName = $"{appId}/releases/{releaseId}/{moduleName}.dll";
+        var safeName = SanitizeName(moduleName);
+        var blobName = $"{appId}/releases/{releaseId}/{safeName}.dll";
 
         if (_useBlob)
         {
@@ -40,9 +41,18 @@ public class BlobStorageService
         // Fallback: local filesystem
         var dir = Path.Combine(_localUploadsPath, appId.ToString(), "releases", releaseId.ToString());
         Directory.CreateDirectory(dir);
-        var filePath = Path.Combine(dir, $"{moduleName}.dll");
+        var filePath = Path.Combine(dir, $"{safeName}.dll");
         await File.WriteAllBytesAsync(filePath, data);
         return filePath;
+    }
+
+    private static string SanitizeName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars().Concat(new[] { '/', '\\', '.', '.' }).ToHashSet();
+        var sanitized = new string(name.Where(c => !invalid.Contains(c)).ToArray());
+        if (string.IsNullOrEmpty(sanitized) || sanitized.Contains(".."))
+            throw new ArgumentException($"Invalid module name: {name}");
+        return sanitized;
     }
 
     public async Task<string> UploadPatchAsync(Guid appId, Guid patchId, byte[] data)

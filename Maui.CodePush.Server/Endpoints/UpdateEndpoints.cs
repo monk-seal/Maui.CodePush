@@ -6,10 +6,19 @@ namespace Maui.CodePush.Server.Endpoints;
 
 public static class UpdateEndpoints
 {
-    private static string GetCdnBaseUrl()
+    private static string? GetCdnBaseUrl()
     {
-        return Environment.GetEnvironmentVariable("CODEPUSH_CDN_URL")
-            ?? "https://cdn.monkseal.dev";
+        return Environment.GetEnvironmentVariable("CODEPUSH_CDN_URL");
+    }
+
+    private static string GetDownloadUrl(HttpRequest request, string container, string blobPath, Guid id)
+    {
+        var cdnBase = GetCdnBaseUrl();
+        if (!string.IsNullOrEmpty(cdnBase))
+            return $"{cdnBase}/{container}/{blobPath}";
+
+        // Fallback for self-hosted (no CDN configured)
+        return $"{request.Scheme}://{request.Host}/api/updates/download/{id}";
     }
 
     public static RouteGroupBuilder MapUpdateEndpoints(this WebApplication app)
@@ -17,6 +26,7 @@ public static class UpdateEndpoints
         var group = app.MapGroup("/api/updates").WithTags("Updates");
 
         group.MapGet("/check", CheckForUpdate);
+        group.MapGet("/download/{releaseId:guid}", DownloadFallback);
 
         return group;
     }
@@ -47,14 +57,12 @@ public static class UpdateEndpoints
         // New flow: releaseVersion present → AppRelease + Patches
         if (!string.IsNullOrWhiteSpace(releaseVersion))
         {
-            return await CheckForUpdateV2(db, appId, appToken, platform, releaseVersion, channel);
+            return await CheckForUpdateV2(request, db, appId, platform, releaseVersion, channel);
         }
 
         // Legacy flow: module + version → Release collection
         if (string.IsNullOrWhiteSpace(module) || string.IsNullOrWhiteSpace(version))
             return Results.BadRequest(new { error = "Either releaseVersion or both module and version are required." });
-
-        var cdnBase = GetCdnBaseUrl();
 
         var latestRelease = await db.Releases
             .Find(r => r.AppId == appId
@@ -82,7 +90,7 @@ public static class UpdateEndpoints
                 {
                     name = latestRelease.ModuleName,
                     version = latestRelease.Version,
-                    downloadUrl = $"{cdnBase}/patches/{appId}/patches/{latestRelease.Id}.dll",
+                    downloadUrl = GetDownloadUrl(request, "patches", $"{appId}/patches/{latestRelease.Id}.dll", latestRelease.Id),
                     hash = latestRelease.DllHash,
                     size = latestRelease.DllSize,
                     isMandatory = latestRelease.IsMandatory
@@ -92,9 +100,9 @@ public static class UpdateEndpoints
     }
 
     private static async Task<IResult> CheckForUpdateV2(
+        HttpRequest request,
         MongoDbContext db,
         Guid appId,
-        string appToken,
         string platform,
         string releaseVersion,
         string channel)
@@ -134,14 +142,12 @@ public static class UpdateEndpoints
             });
         }
 
-        var cdnBase = GetCdnBaseUrl();
-
         var patches = latestPerModule.Select(p => new
         {
             name = p.ModuleName,
             patchNumber = p.PatchNumber,
             version = p.Version,
-            downloadUrl = $"{cdnBase}/patches/{p.AppId}/patches/{p.Id}.dll",
+            downloadUrl = GetDownloadUrl(request, "patches", $"{p.AppId}/patches/{p.Id}.dll", p.Id),
             hash = p.DllHash,
             size = p.DllSize,
             isMandatory = p.IsMandatory
@@ -153,5 +159,43 @@ public static class UpdateEndpoints
             releaseVersion = appRelease.Version,
             patches
         });
+    }
+
+    /// <summary>
+    /// Fallback download for self-hosted deployments without CDN.
+    /// Only used when CODEPUSH_CDN_URL is not configured.
+    /// </summary>
+    private static async Task<IResult> DownloadFallback(
+        Guid releaseId,
+        HttpRequest request,
+        MongoDbContext db,
+        BlobStorageService blobStorage)
+    {
+        var appToken = request.Headers["X-CodePush-Token"].ToString();
+        if (string.IsNullOrWhiteSpace(appToken))
+            return Results.Unauthorized();
+
+        // Try patches first
+        var patch = await db.Patches.Find(p => p.Id == releaseId).FirstOrDefaultAsync();
+        if (patch is not null)
+        {
+            var app = await db.Apps.Find(a => a.Id == patch.AppId && a.AppToken == appToken).FirstOrDefaultAsync();
+            if (app is null) return Results.Unauthorized();
+
+            var data = await blobStorage.DownloadAsync("patches", $"{patch.AppId}/patches/{releaseId}.dll");
+            if (data is null) return Results.NotFound();
+            return Results.File(data, "application/octet-stream", $"{patch.ModuleName}.dll");
+        }
+
+        // Fallback: legacy releases
+        var release = await db.Releases.Find(r => r.Id == releaseId).FirstOrDefaultAsync();
+        if (release is null) return Results.NotFound();
+
+        var releaseApp = await db.Apps.Find(a => a.Id == release.AppId && a.AppToken == appToken).FirstOrDefaultAsync();
+        if (releaseApp is null) return Results.Unauthorized();
+
+        var releaseData = await blobStorage.DownloadAsync("releases", $"{release.AppId}/{releaseId}.dll");
+        if (releaseData is null) return Results.NotFound();
+        return Results.File(releaseData, "application/octet-stream", release.FileName);
     }
 }

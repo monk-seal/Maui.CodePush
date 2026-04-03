@@ -63,7 +63,7 @@ public static class LandingPageEndpoints
         {
             Id = Guid.NewGuid(),
             AccountId = account.Id,
-            Status = SubscriptionStatus.Active,
+            Status = planTier == PlanTier.Free ? SubscriptionStatus.Active : SubscriptionStatus.Inactive,
             Plan = planInfo.Name,
             PlanTier = planTier,
             PatchInstallsLimit = planInfo.PatchInstallsIncluded,

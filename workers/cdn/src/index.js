@@ -14,6 +14,11 @@
 
 export default {
   async fetch(request, env) {
+    // Handle CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders() });
+    }
+
     const url = new URL(request.url);
     const path = url.pathname.slice(1); // remove leading /
 
@@ -55,8 +60,14 @@ export default {
     }
 
     // Validate token against CodePush server
-    const valid = await validateToken(env, appId, token);
-    if (!valid) {
+    const validation = await validateToken(env, appId, token);
+    if (validation === "error") {
+      return new Response(JSON.stringify({ error: "Token validation unavailable" }), {
+        status: 502,
+        headers: corsHeaders("application/json"),
+      });
+    }
+    if (!validation) {
       return new Response(JSON.stringify({ error: "Invalid or unauthorized token" }), {
         status: 403,
         headers: corsHeaders("application/json"),
@@ -107,10 +118,13 @@ export default {
     const responseHeaders = new Headers({
       "Content-Type": "application/octet-stream",
       "Cache-Control": "public, max-age=86400, immutable",
-      "Content-Length": blobResponse.headers.get("Content-Length") || "",
-      "ETag": blobResponse.headers.get("ETag") || "",
       ...corsHeaders(),
     });
+
+    const contentLength = blobResponse.headers.get("Content-Length");
+    if (contentLength) responseHeaders.set("Content-Length", contentLength);
+    const etag = blobResponse.headers.get("ETag");
+    if (etag) responseHeaders.set("ETag", etag);
 
     const fileName = blobPath.split("/").pop();
     if (fileName) {
@@ -157,7 +171,8 @@ async function validateToken(env, appId, token) {
 
     return valid;
   } catch {
-    return false;
+    // Network/server error — don't cache, return "error" to distinguish from invalid token
+    return "error";
   }
 }
 
